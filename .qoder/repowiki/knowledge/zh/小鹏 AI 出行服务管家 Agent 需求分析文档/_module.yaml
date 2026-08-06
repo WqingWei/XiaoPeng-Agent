@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: ""
+title: 小鹏 AI 出行服务管家 Agent 需求分析文档
+scope:
+    - Plan/
+source_files: []
+depends_on: []
+related_to: []

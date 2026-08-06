@@ -1,0 +1,16 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: zh-CN
+branch: Q0DeR-MaG1C-BrAnCh-Fo2-NoN-GiT-Or-No-C0MmIt
+nodes_managed: true
+exported_at: "2026-08-06T08:50:04Z"
+modules:
+    "":
+        dir_name: 小鹏 AI 出行服务管家 Agent 需求分析文档
+        title: 小鹏 AI 出行服务管家 Agent 需求分析文档
+        scope:
+            - Plan/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []

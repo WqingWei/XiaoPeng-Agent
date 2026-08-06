@@ -1,0 +1,160 @@
+{
+  "rules": [
+    {
+      "rule_id": "S01",
+      "name": "疲劳驾驶干预",
+      "type": "hard",
+      "trigger_condition": "driver.driving_duration_min > 120 or driver.fatigue_level >= 2",
+      "action": "warn",
+      "message_template": "您已连续驾驶{driving_duration_min}分钟，建议休息后再继续行驶。附近{rest_area_distance_km}km处有休息区。",
+      "escalation": {
+        "level": 2,
+        "transfer_to_human": false,
+        "call_emergency": null
+      }
+    },
+    {
+      "rule_id": "S02",
+      "name": "儿童安全保护",
+      "type": "hard",
+      "trigger_condition": "cabin.child_seat_detected == true",
+      "action": "force",
+      "message_template": "检测到儿童座椅，已自动启用儿童安全锁。为保障儿童安全，安全锁在行驶中不可关闭。",
+      "escalation": {
+        "level": 2,
+        "transfer_to_human": false,
+        "call_emergency": null
+      }
+    },
+    {
+      "rule_id": "S03",
+      "name": "儿童遗留告警",
+      "type": "hard",
+      "trigger_condition": "driver.seat_occupied == false and cabin.rear_child_present == true",
+      "action": "alert",
+      "message_template": "⚠️ 紧急告警：驾驶员已离座，但后排仍有儿童！请立即确认儿童安全。",
+      "escalation": {
+        "level": 3,
+        "transfer_to_human": true,
+        "call_emergency": null
+      }
+    },
+    {
+      "rule_id": "S04",
+      "name": "乘客求助响应",
+      "type": "hard",
+      "trigger_condition": "passenger.help_signal == true",
+      "action": "alert",
+      "message_template": "收到您的求助信号，正在为您接入帮助。如需紧急服务，我将立即转接人工客服或报警。",
+      "escalation": {
+        "level": 4,
+        "transfer_to_human": true,
+        "call_emergency": "110"
+      }
+    },
+    {
+      "rule_id": "S05",
+      "name": "行驶中视觉限制",
+      "type": "hard",
+      "trigger_condition": "vehicle.speed > 0",
+      "action": "reject",
+      "message_template": "车辆正在行驶中，为确保驾驶安全，无法播放视频或显示需要长时间阅读的内容。",
+      "escalation": {
+        "level": 1,
+        "transfer_to_human": false,
+        "call_emergency": null
+      }
+    },
+    {
+      "rule_id": "S06",
+      "name": "高速车窗限制",
+      "type": "hard",
+      "trigger_condition": "vehicle.speed > 80",
+      "action": "reject",
+      "message_template": "当前车速{speed}km/h，为保障安全，车窗开合度已限制在30%以内。",
+      "escalation": {
+        "level": 1,
+        "transfer_to_human": false,
+        "call_emergency": null
+      }
+    },
+    {
+      "rule_id": "S07",
+      "name": "充电安全",
+      "type": "hard",
+      "trigger_condition": "vehicle.battery.charging == true",
+      "action": "reject",
+      "message_template": "车辆正在充电中，无法移动。预计还需{charging_remaining_min}分钟充满。",
+      "escalation": {
+        "level": 1,
+        "transfer_to_human": false,
+        "call_emergency": null
+      }
+    },
+    {
+      "rule_id": "S08",
+      "name": "上车点安全校验",
+      "type": "hard",
+      "trigger_condition": "order.pickup_in_danger_zone == true",
+      "action": "reject",
+      "message_template": "您选择的上车点位于{danger_zone_type}，存在安全隐患，无法在此处上车。已为您推荐附近安全上车点。",
+      "escalation": {
+        "level": 2,
+        "transfer_to_human": false,
+        "call_emergency": null
+      }
+    },
+    {
+      "rule_id": "S09",
+      "name": "紧急停车",
+      "type": "hard",
+      "trigger_condition": "safety_event.level >= 3",
+      "action": "alert",
+      "message_template": "⚠️ 检测到紧急安全事件，正在寻找最近的安全位置停车。已自动呼叫救援服务。",
+      "escalation": {
+        "level": 4,
+        "transfer_to_human": true,
+        "call_emergency": "120"
+      }
+    },
+    {
+      "rule_id": "S10",
+      "name": "续航预警",
+      "type": "soft",
+      "trigger_condition": "vehicle.battery.range_km < trip.remaining_distance_km * 1.2",
+      "action": "warn",
+      "message_template": "当前剩余续航{range_km}km，距目的地还需约{remaining_distance_km}km，电量可能不足。建议途中在{nearest_charger_name}补充电量。",
+      "escalation": {
+        "level": 1,
+        "transfer_to_human": false,
+        "call_emergency": null
+      }
+    },
+    {
+      "rule_id": "S11",
+      "name": "夜间噪音控制",
+      "type": "soft",
+      "trigger_condition": "time.period == 'night' and media.volume > 40",
+      "action": "warn",
+      "message_template": "现在是夜间时段，建议将媒体音量降低至40%以下，以免影响休息。",
+      "escalation": {
+        "level": 1,
+        "transfer_to_human": false,
+        "call_emergency": null
+      }
+    },
+    {
+      "rule_id": "S12",
+      "name": "温度舒适范围",
+      "type": "soft",
+      "trigger_condition": "cabin.ac.target_temp < 18 or cabin.ac.target_temp > 28",
+      "action": "warn",
+      "message_template": "您设定的空调温度{target_temp}°C超出舒适范围（18-28°C），建议调整以获得更舒适的体验。",
+      "escalation": {
+        "level": 1,
+        "transfer_to_human": false,
+        "call_emergency": null
+      }
+    }
+  ]
+}

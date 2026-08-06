@@ -11,6 +11,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
+from api.chat import register_chat_handlers
+from api.router import router as api_router
+from api.runtime import runtime
 from config.settings import get_settings
 
 # ────────────────────────────────────────────
@@ -23,35 +26,8 @@ sio = socketio.AsyncServer(
     engineio_logger=False,
 )
 
-# ────────────────────────────────────────────
-# Socket.IO 事件处理（占位，后续步骤九完善）
-# ────────────────────────────────────────────
-
-@sio.event
-async def connect(sid, environ):
-    logger.info(f"Socket.IO client connected: {sid}")
-
-
-@sio.event
-async def disconnect(sid):
-    logger.info(f"Socket.IO client disconnected: {sid}")
-
-
-@sio.event
-async def chat_message(sid, data):
-    """接收前端聊天消息（占位，后续步骤八实现完整 Agent 逻辑）"""
-    logger.info(f"Received message from {sid}: {data}")
-    await sio.emit(
-        "agent_response",
-        {
-            "user_response": "你好！我是小鹏 AI 出行服务管家，后端已就绪，Agent 核心引擎正在开发中。",
-            "service_plan": {"summary": "占位响应", "steps": [], "total_estimated_time_s": 0},
-            "reasoning": {"detected_intent": "待实现", "intent_type": "explicit"},
-            "forbidden_actions": [],
-            "safety_alerts": [],
-        },
-        to=sid,
-    )
+# ── 注册真实 Agent Socket.IO 事件 ──
+register_chat_handlers(sio, runtime.agent)
 
 
 # ────────────────────────────────────────────
@@ -97,6 +73,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── 挂载步骤九 REST API ──
+app.include_router(api_router)
 
 # ── 挂载 Socket.IO ASGI 应用 ──
 sio_asgi_app = socketio.ASGIApp(socketio_server=sio, other_asgi_app=app)

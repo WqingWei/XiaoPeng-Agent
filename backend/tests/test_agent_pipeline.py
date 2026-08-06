@@ -274,3 +274,29 @@ async def test_destination_change_requires_confirmation_without_mutation() -> No
     assert "广州塔" in response.follow_up.confirmation_message
     assert context.order.route.dropoff.address == original_destination
     assert "modify_order" not in {step.tool for step in response.service_plan.steps}
+
+
+@pytest.mark.asyncio
+async def test_agent_reports_api_steps_and_applies_mode_inside_session() -> None:
+    agent = Agent(llm=FailingLLM())
+    observed_steps: list[str] = []
+
+    async def on_step(step: str) -> None:
+        observed_steps.append(step)
+
+    await agent.process(
+        "session",
+        "查询车辆状态",
+        on_step=on_step,
+        mode="robotaxi",
+    )
+
+    context = agent.context_manager.get_context("session")
+    assert observed_steps == [
+        "intent_analysis",
+        "safety_check",
+        "orchestrating",
+        "generating",
+    ]
+    assert context.vehicle.mode == "robotaxi"
+    assert context.user_profile.role == "passenger"

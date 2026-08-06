@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
-from typing import Any
+from collections.abc import Awaitable, Callable
+from typing import Any, Literal
 
 from core.context_manager import ContextManager
 from core.intent_engine import IntentEngine
@@ -13,6 +14,9 @@ from core.output_formatter import OutputFormatter
 from core.safety_engine import SafetyEngine
 from core.user_profile_manager import UserProfileManager
 from models.agent_output import AgentResponse
+
+
+StepCallback = Callable[[str], Awaitable[None]]
 
 
 class Agent:
@@ -37,7 +41,13 @@ class Agent:
         self.output_formatter = output_formatter or OutputFormatter(llm=llm)
         self._session_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
-    async def process(self, session_id: str, user_message: str) -> AgentResponse:
+    async def process(
+        self,
+        session_id: str,
+        user_message: str,
+        on_step: StepCallback | None = None,
+        mode: Literal["owner", "robotaxi"] | None = None,
+    ) -> AgentResponse:
         """执行七步流水线，并在成功组装响应后更新会话历史。"""
 
         if not user_message or not user_message.strip():
@@ -46,11 +56,20 @@ class Agent:
         async with self._session_locks[session_id]:
             # Step 1: 获取上下文
             context = self.context_manager.get_context(session_id)
+            if mode:
+                context.vehicle.mode = mode
+                context.user_profile.role = (
+                    "owner" if mode == "owner" else "passenger"
+                )
 
             # Step 2: 意图理解
+            if on_step:
+                await on_step("intent_analysis")
             intent = await self.intent_engine.analyze(user_message, context)
 
             # Step 3: 安全检查
+            if on_step:
+                await on_step("safety_check")
             safety = self.safety_engine.check(
                 context.vehicle,
                 context.environment,
@@ -59,12 +78,16 @@ class Agent:
             )
 
             # Step 4: 服务编排
+            if on_step:
+                await on_step("orchestrating")
             plan = await self.orchestrator.plan(intent, safety, context)
 
             # Step 5: 工具执行
             tool_results = await self.orchestrator.execute(plan, context)
 
             # Step 6: 输出生成
+            if on_step:
+                await on_step("generating")
             response = await self.output_formatter.format(
                 intent,
                 plan,
@@ -83,4 +106,4 @@ class Agent:
             return response
 
 
-__all__ = ["Agent"]
+__all__ = ["Agent", "StepCallback"]

@@ -15,7 +15,7 @@ from typing import Any, Literal
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from models.agent_output import ForbiddenAction
+from models.agent_output import ForbiddenAction, SafetyAlert
 from models.environment import EnvironmentContext
 from models.safety_rules import SafetyRule, SafetyRuleSet
 from models.vehicle import VehicleState
@@ -32,6 +32,7 @@ class SafetyResult(BaseModel):
     triggered_rules: list[SafetyRule] = Field(default_factory=list)
     required_actions: list[str] = Field(default_factory=list)
     forbidden_actions: list[ForbiddenAction] = Field(default_factory=list)
+    safety_alerts: list[SafetyAlert] = Field(default_factory=list)
 
 
 class UnsafeConditionError(ValueError):
@@ -205,12 +206,16 @@ class SafetyEngine:
         self,
         vehicle_state: VehicleState | Mapping[str, Any],
         environment: EnvironmentContext | Mapping[str, Any] | None,
-        intent: str | Mapping[str, Any] | None,
+        intent: str | Mapping[str, Any] | BaseModel | None,
         user_message: str,
     ) -> dict[str, Any]:
         vehicle = _model_to_dict(vehicle_state)
         environment_data = _model_to_dict(environment)
-        intent_data = dict(intent) if isinstance(intent, Mapping) else {}
+        intent_data = (
+            _model_to_dict(intent)
+            if isinstance(intent, (Mapping, BaseModel))
+            else {}
+        )
 
         cabin = vehicle.setdefault("cabin", {})
         driver = vehicle.setdefault("driver", {})
@@ -237,9 +242,38 @@ class SafetyEngine:
         first_charger = chargers[0] if chargers else {}
 
         normalized_message = user_message.strip().lower()
+        intent_text = " ".join(
+            str(intent_data.get(key, ""))
+            for key in ("detected_intent", "original_message", "name")
+        ).lower()
         help_signal = any(
             keyword in normalized_message
             for keyword in ("求助", "救命", "身体不适", "不舒服", "紧急帮助", "help")
+        )
+        traffic_incidents = (environment_data.get("traffic") or {}).get("incidents") or []
+        pickup_request = any(
+            keyword in f"{normalized_message} {intent_text}"
+            for keyword in ("上车点", "接我", "pickup")
+        )
+        explicit_danger = any(
+            keyword in normalized_message
+            for keyword in ("高速路边", "施工", "禁停", "危险")
+        )
+        relevant_incident = next(
+            (
+                incident
+                for incident in traffic_incidents
+                if incident.get("type") in {"construction", "closure"}
+            ),
+            None,
+        )
+        pickup_in_danger_zone = pickup_request and (
+            explicit_danger or relevant_incident is not None
+        )
+        danger_zone_type = (
+            relevant_incident.get("type", "危险区域")
+            if relevant_incident
+            else "危险区域"
         )
 
         context: dict[str, Any] = {
@@ -258,7 +292,10 @@ class SafetyEngine:
             "weather": environment_data.get("weather", {}),
             "traffic": environment_data.get("traffic", {}),
             "passenger": {"help_signal": help_signal},
-            "order": {"pickup_in_danger_zone": False},
+            "order": {
+                "pickup_in_danger_zone": pickup_in_danger_zone,
+                "danger_zone_type": danger_zone_type,
+            },
             "safety_event": {"level": 0},
             "media": {"volume": 30, "playing": False},
             "intent": intent if isinstance(intent, str) else intent_data.get("name", ""),
@@ -301,7 +338,7 @@ class SafetyEngine:
         self,
         vehicle_state: VehicleState | Mapping[str, Any],
         environment: EnvironmentContext | Mapping[str, Any] | None = None,
-        intent: str | Mapping[str, Any] | None = None,
+        intent: str | Mapping[str, Any] | BaseModel | None = None,
         user_message: str = "",
     ) -> SafetyResult:
         """检查当前状态并返回最高等级及所有触发结果。"""
@@ -310,6 +347,7 @@ class SafetyEngine:
         triggered_rules: list[SafetyRule] = []
         required_actions: list[str] = []
         forbidden_actions: list[ForbiddenAction] = []
+        safety_alerts: list[SafetyAlert] = []
 
         for rule in self.rules:
             try:
@@ -321,16 +359,32 @@ class SafetyEngine:
                 continue
 
             triggered_rules.append(rule)
+            message = self._render_message(rule.message_template, context)
             for action in self._required_actions(rule):
                 if action not in required_actions:
                     required_actions.append(action)
+
+            if rule.action == "reject":
+                required_by = "user"
+            elif rule.action == "alert" and rule.escalation.level >= 3:
+                required_by = "system"
+            else:
+                required_by = "agent"
+            safety_alerts.append(
+                SafetyAlert(
+                    level=f"L{rule.escalation.level}",
+                    rule_id=rule.rule_id,
+                    message=message,
+                    required_action=required_by,
+                )
+            )
 
             if rule.action == "reject":
                 forbidden_actions.append(
                     ForbiddenAction(
                         action=rule.name,
                         rule_id=rule.rule_id,
-                        reason=self._render_message(rule.message_template, context),
+                        reason=message,
                     )
                 )
 
@@ -343,6 +397,7 @@ class SafetyEngine:
             triggered_rules=triggered_rules,
             required_actions=required_actions,
             forbidden_actions=forbidden_actions,
+            safety_alerts=safety_alerts,
         )
 
 

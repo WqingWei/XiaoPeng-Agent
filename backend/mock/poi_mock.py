@@ -247,7 +247,9 @@ def search_pois(keyword: str, radius_km: float = 10.0) -> list[dict]:
     )
     results = []
     for poi in all_pois:
-        if keyword.lower() in poi["name"].lower():
+        name_match = keyword.lower() in poi["name"].lower()
+        addr_match = keyword.lower() in poi.get("address", "").lower()
+        if name_match or addr_match:
             if poi.get("distance_km", 999) <= radius_km:
                 results.append(poi)
     return results

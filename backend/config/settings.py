@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     # ── 服务配置 ──
     backend_port: int = 8000
     log_level: str = "INFO"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        """将逗号分隔的 CORS_ORIGINS 转换为 FastAPI/Socket.IO 配置。"""
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 @lru_cache

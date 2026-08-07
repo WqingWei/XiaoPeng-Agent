@@ -16,12 +16,14 @@ from api.router import router as api_router
 from api.runtime import runtime
 from config.settings import get_settings
 
+settings = get_settings()
+
 # ────────────────────────────────────────────
 # Socket.IO 异步服务器
 # ────────────────────────────────────────────
 sio = socketio.AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    cors_allowed_origins=settings.cors_origin_list,
     logger=False,
     engineio_logger=False,
 )
@@ -33,8 +35,6 @@ register_chat_handlers(sio, runtime.agent)
 # ────────────────────────────────────────────
 # FastAPI 应用
 # ────────────────────────────────────────────
-settings = get_settings()
-
 logger.remove()
 logger.add(
     lambda msg: print(msg, end=""),
@@ -64,11 +64,7 @@ app = FastAPI(
 # ── CORS ──
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:8000",
-    ],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

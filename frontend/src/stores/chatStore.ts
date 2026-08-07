@@ -17,11 +17,13 @@ type NewChatMessage = Omit<ChatMessage, "id" | "timestamp"> &
 
 interface ChatState {
   messages: ChatMessage[];
+  selectedResponse: AgentResponse | null;
   thinkingStep: ThinkingStep | null;
   isProcessing: boolean;
   error: string | null;
   addMessage: (message: NewChatMessage) => string;
   clearMessages: () => void;
+  setSelectedResponse: (response: AgentResponse | null) => void;
   setThinkingStep: (step: ThinkingStep | null) => void;
   setProcessing: (isProcessing: boolean) => void;
   setError: (error: string | null) => void;
@@ -36,6 +38,7 @@ function createMessageId(): string {
 
 export const useChatStore = create<ChatState>((set) => ({
   messages: [],
+  selectedResponse: null,
   thinkingStep: null,
   isProcessing: false,
   error: null,
@@ -46,11 +49,21 @@ export const useChatStore = create<ChatState>((set) => ({
       id,
       timestamp: message.timestamp ?? new Date().toISOString(),
     };
-    set((state) => ({ messages: [...state.messages, nextMessage] }));
+    set((state) => ({
+      messages: [...state.messages, nextMessage],
+      selectedResponse: message.agentResponse ?? state.selectedResponse,
+    }));
     return id;
   },
   clearMessages: () =>
-    set({ messages: [], thinkingStep: null, isProcessing: false, error: null }),
+    set({
+      messages: [],
+      selectedResponse: null,
+      thinkingStep: null,
+      isProcessing: false,
+      error: null,
+    }),
+  setSelectedResponse: (selectedResponse) => set({ selectedResponse }),
   setThinkingStep: (thinkingStep) => set({ thinkingStep }),
   setProcessing: (isProcessing) => set({ isProcessing }),
   setError: (error) => set({ error }),

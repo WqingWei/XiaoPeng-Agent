@@ -43,9 +43,16 @@ export interface AlternativeConsidered {
 export interface Reasoning {
   detected_intent: string;
   intent_type: IntentType;
+  confidence?: number;
   context_factors: string[];
   tool_selection_reasons: ToolSelectionReason[];
   alternatives_considered: AlternativeConsidered[];
+}
+
+export interface ConversationMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+  timestamp: string;
 }
 
 export interface SafetyAlert {

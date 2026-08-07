@@ -132,6 +132,24 @@ class ContextManager:
             self._contexts[session_id] = context
         return context
 
+    def reset_to_mode(
+        self,
+        session_id: str,
+        mode: Literal["owner", "robotaxi"],
+    ) -> ConversationContext:
+        """清除场景并创建指定模式的中性默认上下文。"""
+
+        context = ConversationContext(
+            session_id=session_id,
+            vehicle=VehicleState(mode=mode),
+            user_profile=UserProfile(
+                role="owner" if mode == "owner" else "passenger"
+            ),
+        )
+        with self._lock:
+            self._contexts[session_id] = context
+        return context
+
     def remove(self, session_id: str) -> bool:
         """移除会话，返回此前是否存在。"""
 

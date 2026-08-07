@@ -20,7 +20,11 @@ export function ModeToggle() {
   const sessionId = useAppStore((state) => state.sessionId);
   const mode = useAppStore((state) => state.mode);
   const setMode = useAppStore((state) => state.setMode);
+  const setCurrentScenario = useAppStore((state) => state.setCurrentScenario);
+  const clearMessages = useChatStore((state) => state.clearMessages);
+  const addMessage = useChatStore((state) => state.addMessage);
   const setError = useChatStore((state) => state.setError);
+  const setSceneTransition = useChatStore((state) => state.setSceneTransition);
   const setSnapshot = useVehicleStore((state) => state.setSnapshot);
   const [pendingMode, setPendingMode] = useState<AgentMode | null>(null);
 
@@ -28,13 +32,28 @@ export function ModeToggle() {
     if (nextMode === mode || pendingMode) return;
     setPendingMode(nextMode);
     setError(null);
+    setSceneTransition("exiting");
     try {
-      const response = await switchAgentMode(sessionId, nextMode);
+      const [response] = await Promise.all([
+        switchAgentMode(sessionId, nextMode),
+        new Promise((resolve) => window.setTimeout(resolve, 180)),
+      ]);
+      clearMessages();
       setMode(response.mode);
+      setCurrentScenario(response.scenario_id);
       setSnapshot(response.state.vehicle, response.state.environment);
+      addMessage({
+        role: "system",
+        content: `已切换至${response.mode === "owner" ? "车主自驾" : "Robotaxi"}模式，并加载「${response.scenario.title}」。`,
+      });
+      setSceneTransition("entering");
+      await new Promise((resolve) => window.setTimeout(resolve, 300));
     } catch (error) {
-      setError(error instanceof Error ? error.message : "模式切换失败，请稍后重试。");
+      setError(
+        error instanceof Error ? error.message : "模式切换失败，请稍后重试。",
+      );
     } finally {
+      setSceneTransition("idle");
       setPendingMode(null);
     }
   }
@@ -61,7 +80,11 @@ export function ModeToggle() {
             onClick={() => void handleChange(value)}
             type="button"
           >
-            {pending ? <LoaderCircle className="size-3.5 animate-spin" /> : <Icon className="size-3.5" />}
+            {pending ? (
+              <LoaderCircle className="size-3.5 animate-spin" />
+            ) : (
+              <Icon className="size-3.5" />
+            )}
             <span className="hidden sm:inline">{label}</span>
           </button>
         );

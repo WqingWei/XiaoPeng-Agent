@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 import pytest
 from pydantic import ValidationError
 
@@ -48,6 +50,27 @@ def test_reset_loads_complete_scenario_and_clears_old_history() -> None:
     assert context.turn_id == 0
     assert len(context.messages) == 1
     assert context.messages[0].role == "system"
+
+
+@pytest.mark.parametrize(
+    ("mode", "role"),
+    [("owner", "owner"), ("robotaxi", "passenger")],
+)
+def test_reset_to_mode_clears_scenario_and_creates_neutral_state(
+    mode: Literal["owner", "robotaxi"],
+    role: Literal["owner", "passenger"],
+) -> None:
+    manager = ContextManager()
+    manager.reset("session", "passenger_help")
+
+    context = manager.reset_to_mode("session", mode)
+
+    assert context.scenario_id is None
+    assert context.vehicle.mode == mode
+    assert context.vehicle.speed == 0
+    assert context.order is None
+    assert context.messages == []
+    assert context.user_profile.role == role
 
 
 def test_update_vehicle_state_uses_deep_copy() -> None:

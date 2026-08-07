@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from api.runtime import AppRuntime, get_runtime
+from mock.scenario_presets import DEFAULT_SCENARIO_BY_MODE, get_scenario_meta
 from models.environment import EnvironmentContext
 from models.order import OrderState
 from models.user_profile import UserProfile
@@ -66,15 +67,29 @@ async def switch_mode(
     request: ModeSwitchRequest,
     app_runtime: AppRuntime = Depends(get_runtime),
 ) -> dict:
-    """在不丢失当前会话历史的前提下切换 owner/robotaxi 模式。"""
+    """切换模式；当前场景不兼容时加载目标模式的默认场景。"""
 
     context = app_runtime.agent.context_manager.get_context(request.session_id)
-    context.vehicle.mode = request.mode
-    context.user_profile.role = "owner" if request.mode == "owner" else "passenger"
+    scenario_meta = (
+        get_scenario_meta(context.scenario_id) if context.scenario_id else {}
+    )
+    if scenario_meta.get("mode") != request.mode:
+        scenario_id = DEFAULT_SCENARIO_BY_MODE[request.mode]
+        context = app_runtime.agent.context_manager.reset(
+            request.session_id, scenario_id
+        )
+    else:
+        scenario_id = context.scenario_id
+        context.vehicle.mode = request.mode
+        context.user_profile.role = (
+            "owner" if request.mode == "owner" else "passenger"
+        )
     app_runtime.agent.user_profile_manager.save_profile(context.user_profile)
     return {
         "session_id": request.session_id,
         "mode": request.mode,
+        "scenario_id": scenario_id,
+        "scenario": get_scenario_meta(scenario_id) if scenario_id else None,
         "state": context.prompt_snapshot(history_limit=100),
     }
 

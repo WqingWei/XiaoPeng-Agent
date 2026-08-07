@@ -8,6 +8,7 @@ from typing import Any, Literal
 import pytest
 
 from core.agent import Agent
+from mock.scenario_presets import DEFAULT_SCENARIO_BY_MODE, SCENARIO_IDS_BY_MODE
 
 
 class FailingLLM:
@@ -61,6 +62,19 @@ SCENARIO_CASES = [
     ScenarioCase("passenger_help", "救命，请帮帮我", "乘客紧急求助", "urgent", frozenset({"emergency_stop", "call_emergency", "transfer_human"}), "L4", frozenset({"S05"})),
     ScenarioCase("passenger_help", "help，我需要紧急帮助", "乘客紧急求助", "urgent", frozenset({"emergency_stop", "call_emergency", "transfer_human"}), "L4", frozenset({"S05"})),
 ]
+
+
+def test_modes_have_disjoint_scenarios_and_stable_defaults() -> None:
+    owner_scenarios = set(SCENARIO_IDS_BY_MODE["owner"])
+    robotaxi_scenarios = set(SCENARIO_IDS_BY_MODE["robotaxi"])
+
+    assert len(owner_scenarios) == 4
+    assert len(robotaxi_scenarios) == 4
+    assert owner_scenarios.isdisjoint(robotaxi_scenarios)
+    assert DEFAULT_SCENARIO_BY_MODE == {
+        "owner": "fatigue_driving",
+        "robotaxi": "robotaxi_cant_find_car",
+    }
 
 
 def _case_id(case: ScenarioCase) -> str:

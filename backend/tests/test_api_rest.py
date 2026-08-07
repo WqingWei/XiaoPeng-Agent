@@ -115,8 +115,52 @@ async def test_mode_switch_updates_vehicle_and_user_role(client: AsyncClient) ->
     assert response.status_code == 200
     payload = response.json()
     assert payload["mode"] == "robotaxi"
+    assert payload["scenario_id"] == "robotaxi_cant_find_car"
     assert payload["state"]["vehicle"]["mode"] == "robotaxi"
     assert payload["state"]["user_profile"]["role"] == "passenger"
+    assert payload["state"]["order"] is not None
+
+
+@pytest.mark.asyncio
+async def test_mode_switch_replaces_incompatible_scenario(client: AsyncClient) -> None:
+    await client.post(
+        "/api/scenario",
+        json={"session_id": "s-1", "scenario_id": "passenger_help"},
+    )
+
+    response = await client.post(
+        "/api/mode",
+        json={"session_id": "s-1", "mode": "owner"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["scenario_id"] == "fatigue_driving"
+    assert payload["state"]["scenario_id"] == "fatigue_driving"
+    assert payload["state"]["vehicle"]["mode"] == "owner"
+    assert payload["state"]["order"] is None
+
+
+@pytest.mark.asyncio
+async def test_clear_scenario_keeps_mode_and_removes_scenario_state(
+    client: AsyncClient,
+) -> None:
+    await client.post(
+        "/api/scenario",
+        json={"session_id": "s-1", "scenario_id": "passenger_help"},
+    )
+
+    response = await client.delete("/api/scenario/s-1")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["scenario_id"] is None
+    assert payload["mode"] == "robotaxi"
+    assert payload["state"]["scenario_id"] is None
+    assert payload["state"]["vehicle"]["mode"] == "robotaxi"
+    assert payload["state"]["vehicle"]["speed"] == 0
+    assert payload["state"]["order"] is None
+    assert payload["state"]["messages"] == []
 
 
 @pytest.mark.asyncio

@@ -139,6 +139,20 @@ SCENARIO_META: dict[str, dict] = {
 # 所有可用的场景ID列表
 SCENARIO_IDS: list[str] = list(SCENARIO_META.keys())
 
+# 模式与场景的唯一映射。前后端切换模式时均以此约束场景兼容性。
+SCENARIO_IDS_BY_MODE: dict[str, tuple[str, ...]] = {
+    mode: tuple(
+        scenario_id
+        for scenario_id, meta in SCENARIO_META.items()
+        if meta["mode"] == mode
+    )
+    for mode in ("owner", "robotaxi")
+}
+DEFAULT_SCENARIO_BY_MODE: dict[str, str] = {
+    mode: scenario_ids[0]
+    for mode, scenario_ids in SCENARIO_IDS_BY_MODE.items()
+}
+
 
 # ── 场景加载器 ────────────────────────────
 

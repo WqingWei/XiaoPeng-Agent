@@ -38,6 +38,15 @@ export interface ScenarioSwitchResponse {
 export interface ModeSwitchResponse {
   session_id: string;
   mode: AgentMode;
+  scenario_id: string;
+  scenario: ScenarioMeta;
+  state: StateSnapshot;
+}
+
+export interface ScenarioClearResponse {
+  session_id: string;
+  scenario_id: null;
+  mode: AgentMode;
   state: StateSnapshot;
 }
 
@@ -48,8 +57,11 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    const detail = payload?.detail?.message ?? payload?.detail ?? payload?.message;
-    throw new Error(typeof detail === "string" ? detail : `请求失败 (${response.status})`);
+    const detail =
+      payload?.detail?.message ?? payload?.detail ?? payload?.message;
+    throw new Error(
+      typeof detail === "string" ? detail : `请求失败 (${response.status})`,
+    );
   }
   return response.json() as Promise<T>;
 }
@@ -61,6 +73,14 @@ export function switchScenario(
   return request("/api/scenario", {
     method: "POST",
     body: JSON.stringify({ session_id: sessionId, scenario_id: scenarioId }),
+  });
+}
+
+export function clearScenario(
+  sessionId: string,
+): Promise<ScenarioClearResponse> {
+  return request(`/api/scenario/${encodeURIComponent(sessionId)}`, {
+    method: "DELETE",
   });
 }
 

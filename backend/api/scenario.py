@@ -44,4 +44,28 @@ async def switch_scenario(
     }
 
 
-__all__ = ["ScenarioSwitchRequest", "router", "switch_scenario"]
+@router.delete("/scenario/{session_id}")
+async def clear_scenario(
+    session_id: str,
+    app_runtime: AppRuntime = Depends(get_runtime),
+) -> dict:
+    """取消当前场景，保留模式并恢复该模式的中性默认状态。"""
+
+    current = app_runtime.agent.context_manager.get_context(session_id)
+    mode = current.vehicle.mode
+    context = app_runtime.agent.context_manager.reset_to_mode(session_id, mode)
+    app_runtime.agent.user_profile_manager.save_profile(context.user_profile)
+    return {
+        "session_id": session_id,
+        "scenario_id": None,
+        "mode": mode,
+        "state": context.prompt_snapshot(),
+    }
+
+
+__all__ = [
+    "ScenarioSwitchRequest",
+    "clear_scenario",
+    "router",
+    "switch_scenario",
+]

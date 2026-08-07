@@ -22,6 +22,7 @@ from models.agent_output import (
     FollowUp,
     Reasoning,
     ServicePlan,
+    ToolExecutionResult,
 )
 
 
@@ -91,9 +92,14 @@ class OutputFormatter:
             turn_id=context.turn_id + 1,
             user_response=user_response,
             service_plan=service_plan,
+            tool_results=[
+                ToolExecutionResult.model_validate(result.model_dump(mode="json"))
+                for result in tool_results
+            ],
             reasoning=Reasoning(
                 detected_intent=intent.detected_intent,
                 intent_type=intent.intent_type,
+                confidence=intent.confidence,
                 context_factors=intent.context_factors,
                 tool_selection_reasons=orchestration.tool_selection_reasons,
                 alternatives_considered=orchestration.alternatives_considered,

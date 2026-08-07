@@ -21,6 +21,16 @@ export interface ServicePlan {
   total_estimated_time_s: number;
 }
 
+export interface ToolExecutionResult {
+  step_id: number;
+  tool: string;
+  success: boolean;
+  output: Record<string, unknown>;
+  error: string | null;
+  skipped: boolean;
+  duration_ms: number;
+}
+
 export interface IntentResult {
   detected_intent: string;
   intent_type: IntentType;
@@ -43,7 +53,7 @@ export interface AlternativeConsidered {
 export interface Reasoning {
   detected_intent: string;
   intent_type: IntentType;
-  confidence?: number;
+  confidence: number;
   context_factors: string[];
   tool_selection_reasons: ToolSelectionReason[];
   alternatives_considered: AlternativeConsidered[];
@@ -80,6 +90,7 @@ export interface AgentResponse {
   turn_id: number;
   user_response: string;
   service_plan: ServicePlan;
+  tool_results: ToolExecutionResult[];
   reasoning: Reasoning;
   forbidden_actions: ForbiddenAction[];
   safety_alerts: SafetyAlert[];

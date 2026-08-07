@@ -1,8 +1,11 @@
-import { Braces, CircleHelp } from "lucide-react";
+import { Braces, CheckCircle2, CircleX, SkipForward } from "lucide-react";
 
-import type { ServiceStep, ToolSelectionReason } from "@/types";
+import type { ServiceStep, ToolExecutionResult, ToolSelectionReason } from "@/types";
 
-export function ToolCallCard({ step, reason }: { step: ServiceStep; reason?: ToolSelectionReason }) {
+export function ToolCallCard({ step, reason, result }: { step: ServiceStep; reason?: ToolSelectionReason; result?: ToolExecutionResult }) {
+  const status = result?.skipped ? "已跳过" : result?.success ? "执行成功" : "执行失败";
+  const StatusIcon = result?.skipped ? SkipForward : result?.success ? CheckCircle2 : CircleX;
+  const statusClass = result?.skipped ? "text-yellow-300" : result?.success ? "text-xpeng-green" : "text-red-300";
   return (
     <div className="rounded-xl border border-white/8 bg-black/15 p-3">
       <div className="flex items-center justify-between gap-2">
@@ -15,7 +18,13 @@ export function ToolCallCard({ step, reason }: { step: ServiceStep; reason?: Too
       </div>
       <div className="mt-3 grid gap-2 text-[11px] leading-4">
         <p><span className="text-muted-foreground">选择理由：</span>{reason?.reason || "后端未提供独立选择理由"}</p>
-        <p className="flex items-start gap-1.5 text-muted-foreground"><CircleHelp className="mt-0.5 size-3 shrink-0" />结构化执行结果未包含在当前 AgentResponse 中</p>
+        {result ? (
+          <div className="space-y-2">
+            <p className={`flex items-center gap-1.5 ${statusClass}`}><StatusIcon className="size-3.5" />{status} · {result.duration_ms.toFixed(1)}ms</p>
+            {Object.keys(result.output).length ? <pre className="overflow-x-auto rounded-lg bg-black/30 p-2 text-[10px] leading-4 text-foreground/80">{JSON.stringify(result.output, null, 2)}</pre> : null}
+            {result.error ? <p className="text-red-300">{result.error}</p> : null}
+          </div>
+        ) : <p className="text-muted-foreground">未找到对应的执行结果</p>}
       </div>
     </div>
   );

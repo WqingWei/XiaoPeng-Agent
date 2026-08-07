@@ -10,14 +10,14 @@ const INTENT_META: Record<IntentType, { label: string; className: string }> = {
 export function IntentCard({ reasoning }: { reasoning: Reasoning }) {
   const meta = INTENT_META[reasoning.intent_type];
   const confidence = reasoning.confidence;
-  const percentage = confidence === undefined ? 0 : Math.round(confidence * 100);
+  const percentage = Math.round(confidence * 100);
 
   return (
     <div className="space-y-4 rounded-xl border border-white/8 bg-black/15 p-3.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Badge className={meta.className} variant="outline">{meta.label}</Badge>
         <span className="text-xs text-muted-foreground">
-          置信度 {confidence === undefined ? "未提供" : `${percentage}%`}
+          置信度 {percentage}%
         </span>
       </div>
       <div>
@@ -34,8 +34,8 @@ export function IntentCard({ reasoning }: { reasoning: Reasoning }) {
           role="progressbar"
         >
           <div
-            className={`h-full rounded-full transition-[width] ${confidence === undefined ? "bg-zinc-600" : "bg-xpeng-green"}`}
-            style={{ width: `${confidence === undefined ? 8 : percentage}%` }}
+            className="h-full rounded-full bg-xpeng-green transition-[width]"
+            style={{ width: `${percentage}%` }}
           />
         </div>
       </div>

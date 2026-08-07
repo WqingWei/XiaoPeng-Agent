@@ -39,6 +39,7 @@ export function AgentPanel() {
                   <ToolCallCard
                     key={step.step_id}
                     reason={response.reasoning.tool_selection_reasons.find((item) => item.tool === step.tool)}
+                    result={response.tool_results.find((item) => item.step_id === step.step_id)}
                     step={step}
                   />
                 )) : <EmptyDetail text="本轮没有工具调用" />}

@@ -31,6 +31,17 @@ class ServicePlan(BaseModel):
     total_estimated_time_s: float = Field(default=0, ge=0, description="总预估耗时 (秒)")
 
 
+class ToolExecutionResult(BaseModel):
+    """单个工具步骤的真实执行结果。"""
+    step_id: int = Field(ge=1)
+    tool: str
+    success: bool
+    output: dict = Field(default_factory=dict)
+    error: str | None = None
+    skipped: bool = False
+    duration_ms: float = Field(default=0, ge=0)
+
+
 # ── 推理过程子模型 ─────────────────────────
 
 class ToolSelectionReason(BaseModel):
@@ -49,6 +60,7 @@ class Reasoning(BaseModel):
     """Agent 推理过程"""
     detected_intent: str = Field(default="", description="识别到的用户意图")
     intent_type: Literal["explicit", "implicit", "urgent"] = Field(default="explicit")
+    confidence: float = Field(default=0.5, ge=0, le=1, description="意图识别置信度")
     context_factors: list[str] = Field(default_factory=list, description="影响决策的上下文因素")
     tool_selection_reasons: list[ToolSelectionReason] = Field(default_factory=list)
     alternatives_considered: list[AlternativeConsidered] = Field(default_factory=list)
@@ -100,6 +112,7 @@ class AgentResponse(BaseModel):
     )
 
     service_plan: ServicePlan = Field(default_factory=ServicePlan)
+    tool_results: list[ToolExecutionResult] = Field(default_factory=list)
     reasoning: Reasoning = Field(default_factory=Reasoning)
 
     forbidden_actions: list[ForbiddenAction] = Field(default_factory=list)

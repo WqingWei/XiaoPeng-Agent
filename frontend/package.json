@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
+    "test:integration": "node scripts/integration-smoke.mjs",
     "start": "next start",
     "lint": "eslint"
   },

@@ -75,10 +75,16 @@ async def test_chat_emits_four_thinking_steps_and_response() -> None:
         "agent_thinking",
         "agent_thinking",
         "agent_thinking",
+        "vehicle_state_update",
         "agent_response",
     ]
     assert [data["step"] for event, data, _ in sio.emitted if event == "agent_thinking"] == list(THINKING_STEPS)
     assert sio.emitted[-1][1]["user_response"] == "已完成处理。"
+    vehicle_event = next(
+        data for event, data, _ in sio.emitted if event == "vehicle_state_update"
+    )
+    assert vehicle_event["session_id"] == "session-1"
+    assert vehicle_event["vehicle"]["mode"] == "owner"
     assert all(target == "socket-1" for _, _, target in sio.emitted)
     assert agent.calls == [("session-1", "打开空调")]
 

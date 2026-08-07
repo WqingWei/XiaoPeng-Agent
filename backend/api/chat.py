@@ -66,6 +66,15 @@ def register_chat_handlers(sio: Any, agent: Agent) -> dict[str, Any]:
                 on_step=emit_step,
                 mode=request.mode,
             )
+            context = agent.context_manager.get_context(request.session_id)
+            await sio.emit(
+                "vehicle_state_update",
+                {
+                    "session_id": request.session_id,
+                    "vehicle": context.vehicle.model_dump(mode="json"),
+                },
+                to=sid,
+            )
             await sio.emit(
                 "agent_response",
                 response.model_dump(mode="json"),

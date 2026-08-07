@@ -27,7 +27,13 @@ async def test_agent_minimum_ac_control_loop() -> None:
     assert response.user_response
     assert "ac_control" in {step.tool for step in response.service_plan.steps}
     assert response.reasoning.detected_intent == "调节座舱空调"
+    assert response.reasoning.confidence == pytest.approx(0.72)
     assert response.reasoning.tool_selection_reasons
+    assert len(response.tool_results) == len(response.service_plan.steps)
+    assert all(result.success for result in response.tool_results)
+    assert {result.tool for result in response.tool_results} == {
+        step.tool for step in response.service_plan.steps
+    }
     assert response.session_id == "agent-minimal"
     assert response.turn_id == 1
     context = agent.context_manager.get_context("agent-minimal")

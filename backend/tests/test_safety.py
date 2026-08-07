@@ -148,6 +148,12 @@ def test_each_rule_triggers(
     assert rule_id in _rule_ids(result)
     assert int(result.safety_level[1:]) >= int(expected_level[1:])
     assert result.required_actions
+    assert rule_id in {alert.rule_id for alert in result.safety_alerts}
+    rule = next(item for item in engine.rules if item.rule_id == rule_id)
+    if rule.action == "reject":
+        assert rule_id in {
+            forbidden.rule_id for forbidden in result.forbidden_actions
+        }
 
 
 @pytest.mark.parametrize(

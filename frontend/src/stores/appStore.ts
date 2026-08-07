@@ -9,21 +9,24 @@ interface AppState {
   isConnected: boolean;
   isAgentDrawerOpen: boolean;
   isAgentPanelCollapsed: boolean;
+  isSessionReady: boolean;
   setSessionId: (sessionId: string) => void;
   setMode: (mode: AgentMode) => void;
   setCurrentScenario: (scenarioId: string | null) => void;
   setConnected: (isConnected: boolean) => void;
   setAgentDrawerOpen: (isAgentDrawerOpen: boolean) => void;
   setAgentPanelCollapsed: (isAgentPanelCollapsed: boolean) => void;
+  setSessionReady: (isSessionReady: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  sessionId: "xpeng-demo-session",
+  sessionId: "",
   mode: "owner",
   currentScenario: null,
   isConnected: false,
   isAgentDrawerOpen: false,
   isAgentPanelCollapsed: false,
+  isSessionReady: false,
   setSessionId: (sessionId) => set({ sessionId }),
   setMode: (mode) => set({ mode }),
   setCurrentScenario: (currentScenario) => set({ currentScenario }),
@@ -31,4 +34,5 @@ export const useAppStore = create<AppState>((set) => ({
   setAgentDrawerOpen: (isAgentDrawerOpen) => set({ isAgentDrawerOpen }),
   setAgentPanelCollapsed: (isAgentPanelCollapsed) =>
     set({ isAgentPanelCollapsed }),
+  setSessionReady: (isSessionReady) => set({ isSessionReady }),
 }));

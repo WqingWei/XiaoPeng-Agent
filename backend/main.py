@@ -50,8 +50,16 @@ async def lifespan(app: FastAPI):
     logger.info(f"   模型: {settings.model_name} (主) / {settings.model_name_lite} (轻)")
     logger.info(f"   API:  {settings.openai_base_url}")
     logger.info(f"   端口: {settings.backend_port}")
-    yield
-    logger.info("🛑 后端服务已关闭")
+    runtime.initialize()
+    persistence_status = (
+        runtime.persistence.status() if runtime.persistence else {"enabled": False}
+    )
+    logger.info(f"   持久化: {persistence_status}")
+    try:
+        yield
+    finally:
+        runtime.close()
+        logger.info("🛑 后端服务已关闭")
 
 
 app = FastAPI(

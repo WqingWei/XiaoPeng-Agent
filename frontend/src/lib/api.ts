@@ -76,6 +76,12 @@ export function switchScenario(
   });
 }
 
+export function getAgentState(sessionId: string): Promise<StateSnapshot> {
+  return request(`/api/state/${encodeURIComponent(sessionId)}`, {
+    method: "GET",
+  });
+}
+
 export function clearScenario(
   sessionId: string,
 ): Promise<ScenarioClearResponse> {

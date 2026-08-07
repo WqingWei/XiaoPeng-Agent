@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from threading import RLock
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from core.persistence import PersistenceBackend
 from mock.scenario_presets import load_scenario
 from models.environment import EnvironmentContext
 from models.order import OrderState
@@ -21,6 +22,7 @@ class ConversationMessage(BaseModel):
     role: Literal["system", "user", "assistant"]
     content: str
     timestamp: datetime = Field(default_factory=datetime.now)
+    agent_response: dict[str, Any] | None = None
 
 
 class ConversationContext(BaseModel):
@@ -56,9 +58,10 @@ class ConversationContext(BaseModel):
 class ContextManager:
     """以内存方式维护隔离的多会话上下文。"""
 
-    def __init__(self) -> None:
+    def __init__(self, persistence: PersistenceBackend | None = None) -> None:
         self._contexts: dict[str, ConversationContext] = {}
         self._lock = RLock()
+        self._persistence = persistence
 
     def get_context(self, session_id: str) -> ConversationContext:
         """返回已有上下文；不存在时创建默认上下文。"""
@@ -67,7 +70,26 @@ class ContextManager:
             raise ValueError("session_id 不能为空")
         with self._lock:
             if session_id not in self._contexts:
-                self._contexts[session_id] = ConversationContext(session_id=session_id)
+                restored = (
+                    self._persistence.load_context(session_id)
+                    if self._persistence
+                    else None
+                )
+                if restored is not None:
+                    self._contexts[session_id] = ConversationContext.model_validate(
+                        restored
+                    )
+                else:
+                    profile = None
+                    if self._persistence:
+                        stored_profile = self._persistence.load_profile("U-001")
+                        if stored_profile is not None:
+                            profile = UserProfile.model_validate(stored_profile)
+                    self._contexts[session_id] = ConversationContext(
+                        session_id=session_id,
+                        user_profile=profile or UserProfile(),
+                    )
+                    self._save(self._contexts[session_id])
             return self._contexts[session_id]
 
     def add_message(
@@ -75,6 +97,7 @@ class ContextManager:
         session_id: str,
         role: Literal["system", "user", "assistant"],
         content: str,
+        agent_response: dict[str, Any] | None = None,
     ) -> ConversationMessage:
         """追加消息；每条用户消息开启一个新轮次。"""
 
@@ -82,10 +105,15 @@ class ContextManager:
             raise ValueError("消息内容不能为空")
         with self._lock:
             context = self.get_context(session_id)
-            message = ConversationMessage(role=role, content=content.strip())
+            message = ConversationMessage(
+                role=role,
+                content=content.strip(),
+                agent_response=agent_response,
+            )
             context.messages.append(message)
             if role == "user":
                 context.turn_id += 1
+            self._save(context)
             return message
 
     def update_vehicle_state(
@@ -98,6 +126,7 @@ class ContextManager:
         with self._lock:
             context = self.get_context(session_id)
             context.vehicle = state.model_copy(deep=True)
+            self._save(context)
             return context
 
     def update_order(
@@ -110,6 +139,7 @@ class ContextManager:
         with self._lock:
             context = self.get_context(session_id)
             context.order = order.model_copy(deep=True) if order else None
+            self._save(context)
             return context
 
     def reset(self, session_id: str, scenario_id: str) -> ConversationContext:
@@ -130,6 +160,7 @@ class ContextManager:
             )
         with self._lock:
             self._contexts[session_id] = context
+            self._save(context)
         return context
 
     def reset_to_mode(
@@ -148,13 +179,32 @@ class ContextManager:
         )
         with self._lock:
             self._contexts[session_id] = context
+            self._save(context)
         return context
+
+    def save(self, context: ConversationContext) -> ConversationContext:
+        """保存当前上下文快照，并保证内存与外部存储一致。"""
+
+        with self._lock:
+            self._contexts[context.session_id] = context
+            self._save(context)
+            return context
 
     def remove(self, session_id: str) -> bool:
         """移除会话，返回此前是否存在。"""
 
         with self._lock:
-            return self._contexts.pop(session_id, None) is not None
+            removed = self._contexts.pop(session_id, None) is not None
+            if self._persistence:
+                self._persistence.delete_context(session_id)
+            return removed
+
+    def _save(self, context: ConversationContext) -> None:
+        if self._persistence:
+            self._persistence.save_context(
+                context.session_id,
+                context.model_dump(mode="json"),
+            )
 
     @property
     def session_count(self) -> int:

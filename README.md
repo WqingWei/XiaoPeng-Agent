@@ -14,6 +14,7 @@
 - 12 条可配置安全规则，支持警告、拒绝、强制措施与人工/紧急服务升级
 - 26 个模拟工具，覆盖座舱、导航、车况、订单与安全应急
 - REST + Socket.IO 实时推送 Agent 思考阶段、车辆状态和最终结果
+- 标签页级独立会话与刷新恢复，PostgreSQL 持久化完整上下文、Redis 加速会话读取
 - OpenAI 兼容模型接口，支持结构化强校验、最多 2 次格式重试和离线 Fallback
 
 ## 三层架构
@@ -64,7 +65,7 @@ Agent 的单轮处理顺序为：
 | 后端 | Python 3.11、FastAPI、python-socketio、Uvicorn |
 | Agent | LangChain、Jinja2 Prompt、Pydantic 2、自定义安全规则引擎 |
 | 模型 | 阿里云百炼 OpenAI 兼容接口；`qwen3.8-max` / `qwen3.7-flash` |
-| 工程 | uv、pnpm 11、pytest、ESLint、Docker / Docker Compose、Render、Vercel |
+| 数据与工程 | PostgreSQL 16、Redis 7、uv、pnpm 11、pytest、ESLint、Docker / Docker Compose、Render、Vercel |
 
 ## 本地运行（3 条命令）
 
@@ -137,7 +138,7 @@ cd frontend && pnpm test:integration
 .
 ├── backend/
 │   ├── api/                 # REST 与 Socket.IO 接入
-│   ├── core/                # Agent、意图、安全、编排、输出与记忆
+│   ├── core/                # Agent、编排、记忆及 PostgreSQL/Redis 持久化
 │   ├── mock/                # 8 场景的模拟状态
 │   ├── models/              # Pydantic 领域模型
 │   ├── prompts/             # Jinja2 Prompt 与 Few-shot
@@ -173,12 +174,15 @@ cd frontend && pnpm test:integration
 | `CORS_ORIGINS` | 允许的前端 Origin，逗号分隔 | `http://localhost:3000,...` |
 | `NEXT_PUBLIC_API_URL` | 前端 REST 后端地址 | `http://localhost:8000` |
 | `NEXT_PUBLIC_SOCKET_URL` | 前端 Socket.IO 后端地址 | `http://localhost:8000` |
+| `DATABASE_URL` | PostgreSQL 会话与用户画像持久化 | Docker Compose 自动配置 |
+| `REDIS_URL` | Redis 会话/画像读缓存 | Docker Compose 自动配置 |
+| `REDIS_CACHE_TTL_SECONDS` | Redis 缓存秒数；`0` 表示不过期 | `86400` |
+| `PERSISTENCE_REQUIRED` | 存储不可用时是否阻止后端启动 | Docker 为 `true`，原生开发默认 `false` |
 
 ## 交付状态
 
 - 源码仓库：<https://github.com/WqingWei/XiaoPeng-Agent>
-- 本地 Docker 生产构建与 8/8 场景联调：已通过
+- 本地 Docker 四服务、持久化重启恢复与 8/8 场景联调：已通过
 - 云端 Web 链接：待 Vercel / Render 凭据与项目授权
 - Demo 视频：根据用户要求不录制，不作为本次交付项
 - 完整状态：[DELIVERY_CHECKLIST.md](DELIVERY_CHECKLIST.md)
-

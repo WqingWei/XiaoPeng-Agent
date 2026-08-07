@@ -18,6 +18,7 @@ const OPTIONS: Array<{
 
 export function ModeToggle() {
   const sessionId = useAppStore((state) => state.sessionId);
+  const isSessionReady = useAppStore((state) => state.isSessionReady);
   const mode = useAppStore((state) => state.mode);
   const setMode = useAppStore((state) => state.setMode);
   const setCurrentScenario = useAppStore((state) => state.setCurrentScenario);
@@ -29,7 +30,7 @@ export function ModeToggle() {
   const [pendingMode, setPendingMode] = useState<AgentMode | null>(null);
 
   async function handleChange(nextMode: AgentMode) {
-    if (nextMode === mode || pendingMode) return;
+    if (!isSessionReady || nextMode === mode || pendingMode) return;
     setPendingMode(nextMode);
     setError(null);
     setSceneTransition("exiting");
@@ -76,7 +77,7 @@ export function ModeToggle() {
                 ? "bg-xpeng-green text-primary-foreground"
                 : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
             }`}
-            disabled={pendingMode !== null}
+            disabled={!isSessionReady || pendingMode !== null}
             onClick={() => void handleChange(value)}
             type="button"
           >

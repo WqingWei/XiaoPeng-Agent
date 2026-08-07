@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
+    # ── 会话持久化 ──
+    database_url: str = ""
+    redis_url: str = ""
+    redis_cache_ttl_seconds: int = 86_400
+    persistence_required: bool = False
+
     @property
     def cors_origin_list(self) -> list[str]:
         """将逗号分隔的 CORS_ORIGINS 转换为 FastAPI/Socket.IO 配置。"""

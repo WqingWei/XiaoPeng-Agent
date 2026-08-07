@@ -6,15 +6,17 @@ from collections.abc import Mapping
 from threading import RLock
 from typing import Any, Literal
 
+from core.persistence import PersistenceBackend
 from models.user_profile import UserProfile, UserPreferences
 
 
 class UserProfileManager:
     """按用户 ID 管理画像，并通过 Pydantic 保证更新后的类型安全。"""
 
-    def __init__(self) -> None:
+    def __init__(self, persistence: PersistenceBackend | None = None) -> None:
         self._profiles: dict[str, UserProfile] = {}
         self._lock = RLock()
+        self._persistence = persistence
 
     def load_profile(
         self,
@@ -27,7 +29,16 @@ class UserProfileManager:
             raise ValueError("user_id 不能为空")
         with self._lock:
             if user_id not in self._profiles:
-                self._profiles[user_id] = UserProfile(user_id=user_id, role=role)
+                restored = (
+                    self._persistence.load_profile(user_id)
+                    if self._persistence
+                    else None
+                )
+                self._profiles[user_id] = (
+                    UserProfile.model_validate(restored)
+                    if restored is not None
+                    else UserProfile(user_id=user_id, role=role)
+                )
             return self._profiles[user_id].model_copy(deep=True)
 
     def save_profile(self, profile: UserProfile) -> UserProfile:
@@ -35,6 +46,11 @@ class UserProfileManager:
 
         with self._lock:
             self._profiles[profile.user_id] = profile.model_copy(deep=True)
+            if self._persistence:
+                self._persistence.save_profile(
+                    profile.user_id,
+                    profile.model_dump(mode="json"),
+                )
             return self._profiles[profile.user_id].model_copy(deep=True)
 
     def update_preferences(
@@ -57,6 +73,11 @@ class UserProfileManager:
                 preferences.model_dump()
             )
             self._profiles[user_id] = profile.model_copy(deep=True)
+            if self._persistence:
+                self._persistence.save_profile(
+                    user_id,
+                    profile.model_dump(mode="json"),
+                )
             return profile.model_copy(deep=True)
 
     def add_recent_trip(self, user_id: str, trip: Mapping[str, Any]) -> UserProfile:
@@ -66,6 +87,11 @@ class UserProfileManager:
             profile = self.load_profile(user_id)
             profile.history.recent_trips.append(dict(trip))
             self._profiles[user_id] = profile.model_copy(deep=True)
+            if self._persistence:
+                self._persistence.save_profile(
+                    user_id,
+                    profile.model_dump(mode="json"),
+                )
             return profile.model_copy(deep=True)
 
 

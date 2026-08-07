@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { AgentResponse, ThinkingStep } from "@/types";
+import type { AgentResponse, ConversationMessage, ThinkingStep } from "@/types";
 
 export type ChatRole = "user" | "assistant" | "system";
 export type SceneTransition = "idle" | "exiting" | "entering";
@@ -25,6 +25,7 @@ interface ChatState {
   sceneTransition: SceneTransition;
   addMessage: (message: NewChatMessage) => string;
   clearMessages: () => void;
+  hydrateMessages: (messages: ConversationMessage[]) => void;
   setSelectedResponse: (response: AgentResponse | null) => void;
   setThinkingStep: (step: ThinkingStep | null) => void;
   setProcessing: (isProcessing: boolean) => void;
@@ -67,6 +68,24 @@ export const useChatStore = create<ChatState>((set) => ({
       isProcessing: false,
       error: null,
     }),
+  hydrateMessages: (messages) => {
+    const hydrated = messages.map((message, index) => ({
+      id: `history-${index}-${message.timestamp}`,
+      role: message.role,
+      content: message.content,
+      timestamp: message.timestamp,
+      agentResponse: message.agent_response ?? undefined,
+    }));
+    const selectedResponse = [...hydrated]
+      .reverse()
+      .find((message) => message.agentResponse)?.agentResponse;
+    set({
+      messages: hydrated,
+      selectedResponse: selectedResponse ?? null,
+      thinkingStep: null,
+      isProcessing: false,
+    });
+  },
   setSelectedResponse: (selectedResponse) => set({ selectedResponse }),
   setThinkingStep: (thinkingStep) => set({ thinkingStep }),
   setProcessing: (isProcessing) => set({ isProcessing }),

@@ -6,10 +6,11 @@ import { ChatPanel } from "@/components/ChatPanel";
 import { Header } from "@/components/Header";
 import { SceneSelector } from "@/components/SceneSelector";
 import { StatusBar } from "@/components/StatusBar";
-import { useSocket } from "@/hooks";
+import { useSessionBootstrap, useSocket } from "@/hooks";
 import { useAppStore } from "@/stores";
 
 export default function Home() {
+  useSessionBootstrap();
   useSocket();
   const isAgentPanelCollapsed = useAppStore(
     (state) => state.isAgentPanelCollapsed,

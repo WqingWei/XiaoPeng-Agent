@@ -99,7 +99,10 @@ class Agent:
             # Step 7: 更新上下文与画像后返回
             self.context_manager.add_message(session_id, "user", user_message)
             self.context_manager.add_message(
-                session_id, "assistant", response.user_response
+                session_id,
+                "assistant",
+                response.user_response,
+                agent_response=response.model_dump(mode="json"),
             )
             self.user_profile_manager.save_profile(context.user_profile)
             response.turn_id = context.turn_id

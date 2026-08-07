@@ -94,6 +94,7 @@ const SCENARIOS: ScenarioItem[] = [
 
 export function SceneSelector() {
   const sessionId = useAppStore((state) => state.sessionId);
+  const isSessionReady = useAppStore((state) => state.isSessionReady);
   const mode = useAppStore((state) => state.mode);
   const currentScenario = useAppStore((state) => state.currentScenario);
   const setCurrentScenario = useAppStore((state) => state.setCurrentScenario);
@@ -109,7 +110,7 @@ export function SceneSelector() {
   );
 
   async function handleSelect(scenario: ScenarioItem) {
-    if (loadingId) return;
+    if (!isSessionReady || loadingId) return;
     setLoadingId(scenario.id);
     setError(null);
     setSceneTransition("exiting");
@@ -139,7 +140,7 @@ export function SceneSelector() {
   }
 
   async function handleClear() {
-    if (loadingId || !currentScenario) return;
+    if (!isSessionReady || loadingId || !currentScenario) return;
     setLoadingId("clear");
     setError(null);
     setSceneTransition("exiting");
@@ -179,7 +180,7 @@ export function SceneSelector() {
           {currentScenario ? (
             <button
               className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground disabled:opacity-50"
-              disabled={loadingId !== null}
+              disabled={!isSessionReady || loadingId !== null}
               onClick={() => void handleClear()}
               type="button"
             >
@@ -214,7 +215,7 @@ export function SceneSelector() {
                   ? "border-xpeng-green/50 bg-xpeng-green/10"
                   : "border-transparent hover:border-white/10 hover:bg-white/[0.035]"
               }`}
-              disabled={loadingId !== null}
+              disabled={!isSessionReady || loadingId !== null}
               onClick={() => void handleSelect(scenario)}
               type="button"
             >

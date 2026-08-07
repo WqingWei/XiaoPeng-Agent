@@ -11,6 +11,7 @@ export interface UseChatResult {
 
 export function useChat(): UseChatResult {
   const sessionId = useAppStore((state) => state.sessionId);
+  const isSessionReady = useAppStore((state) => state.isSessionReady);
   const mode = useAppStore((state) => state.mode);
   const addMessage = useChatStore((state) => state.addMessage);
   const setProcessing = useChatStore((state) => state.setProcessing);
@@ -20,7 +21,7 @@ export function useChat(): UseChatResult {
   const sendMessage = useCallback(
     (text: string) => {
       const message = text.trim();
-      if (!message) return false;
+      if (!message || !sessionId || !isSessionReady) return false;
 
       addMessage({ role: "user", content: message });
       setError(null);
@@ -31,6 +32,7 @@ export function useChat(): UseChatResult {
     },
     [
       addMessage,
+      isSessionReady,
       mode,
       sessionId,
       setError,

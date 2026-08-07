@@ -63,6 +63,7 @@ export interface ConversationMessage {
   role: "system" | "user" | "assistant";
   content: string;
   timestamp: string;
+  agent_response?: AgentResponse | null;
 }
 
 export interface SafetyAlert {
@@ -98,10 +99,7 @@ export interface AgentResponse {
 }
 
 export type ThinkingStep =
-  | "intent_analysis"
-  | "safety_check"
-  | "orchestrating"
-  | "generating";
+  "intent_analysis" | "safety_check" | "orchestrating" | "generating";
 
 export interface AgentThinkingEvent {
   session_id: string;

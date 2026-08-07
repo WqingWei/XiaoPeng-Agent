@@ -36,6 +36,7 @@ async def switch_scenario(
     context = app_runtime.agent.context_manager.reset(
         request.session_id, request.scenario_id
     )
+    app_runtime.agent.user_profile_manager.save_profile(context.user_profile)
     return {
         "session_id": request.session_id,
         "scenario_id": request.scenario_id,

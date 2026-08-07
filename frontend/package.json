@@ -2,9 +2,11 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
+    "test:session": "node --test --experimental-strip-types tests/session-memory.test.ts",
     "test:integration": "node scripts/integration-smoke.mjs",
     "start": "next start",
     "lint": "eslint"

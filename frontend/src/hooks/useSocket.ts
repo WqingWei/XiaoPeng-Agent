@@ -13,6 +13,7 @@ import type {
 
 export function useSocket(): void {
   const sessionId = useAppStore((state) => state.sessionId);
+  const isSessionReady = useAppStore((state) => state.isSessionReady);
   const setConnected = useAppStore((state) => state.setConnected);
   const addMessage = useChatStore((state) => state.addMessage);
   const setThinkingStep = useChatStore((state) => state.setThinkingStep);
@@ -21,6 +22,8 @@ export function useSocket(): void {
   const setVehicle = useVehicleStore((state) => state.setVehicle);
 
   useEffect(() => {
+    if (!sessionId || !isSessionReady) return;
+
     const handleConnect = () => {
       setConnected(true);
       setError(null);
@@ -82,6 +85,7 @@ export function useSocket(): void {
     };
   }, [
     addMessage,
+    isSessionReady,
     sessionId,
     setConnected,
     setError,

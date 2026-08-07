@@ -59,6 +59,7 @@ async def update_agent_state(
     if request.user_profile is not None:
         context.user_profile = request.user_profile.model_copy(deep=True)
         app_runtime.agent.user_profile_manager.save_profile(context.user_profile)
+    app_runtime.agent.context_manager.save(context)
     return context.prompt_snapshot(history_limit=100)
 
 
@@ -85,6 +86,7 @@ async def switch_mode(
             "owner" if request.mode == "owner" else "passenger"
         )
     app_runtime.agent.user_profile_manager.save_profile(context.user_profile)
+    app_runtime.agent.context_manager.save(context)
     return {
         "session_id": request.session_id,
         "mode": request.mode,

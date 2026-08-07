@@ -53,6 +53,7 @@ def _assistant_json(
         "reasoning": {
             "detected_intent": intent,
             "intent_type": intent_type,
+            "confidence": 0.95,
             "context_factors": ["车辆状态", "环境信息", "用户消息"],
             "tool_selection_reasons": [
                 {"tool": tool, "reason": f"完成“{intent}”所需的原子能力"}
@@ -71,7 +72,7 @@ def _assistant_json(
     return json.dumps(output, ensure_ascii=False)
 
 
-_SCENARIO_CASES: dict[str, list[dict[str, Any]]] = {
+PROMPT_EVALUATION_CASES: dict[str, list[dict[str, Any]]] = {
     "fatigue_driving": [
         {
             "user": "我有点困。",
@@ -98,7 +99,7 @@ _SCENARIO_CASES: dict[str, list[dict[str, Any]]] = {
             "response": "已启用儿童安全锁，并会把后排温度调到舒适范围。",
             "intent": "启用亲子出行保护",
             "type": "implicit",
-            "tools": ["child_lock_control", "ac_control"],
+            "tools": ["ac_control"],
             "level": "L2",
             "rule": "S02",
         },
@@ -119,6 +120,8 @@ _SCENARIO_CASES: dict[str, list[dict[str, Any]]] = {
             "intent": "规划长途补能",
             "type": "explicit",
             "tools": ["search_charger"],
+            "level": "L1",
+            "rule": "S05",
         },
         {
             "user": "正在充电，直接开走。",
@@ -137,6 +140,8 @@ _SCENARIO_CASES: dict[str, list[dict[str, Any]]] = {
             "intent": "通勤到达前停车准备",
             "type": "implicit",
             "tools": ["search_parking"],
+            "level": "L1",
+            "rule": "S05",
         },
         {
             "user": "边开车边给我播放一段视频。",
@@ -183,6 +188,7 @@ _SCENARIO_CASES: dict[str, list[dict[str, Any]]] = {
             "tools": ["search_poi"],
             "level": "L2",
             "rule": "S08",
+            "confirm": True,
         },
     ],
     "change_destination": [
@@ -192,6 +198,8 @@ _SCENARIO_CASES: dict[str, list[dict[str, Any]]] = {
             "intent": "修改行程目的地",
             "type": "explicit",
             "tools": ["get_order_status", "traffic_info"],
+            "level": "L1",
+            "rule": "S05",
             "confirm": True,
         },
         {
@@ -200,6 +208,8 @@ _SCENARIO_CASES: dict[str, list[dict[str, Any]]] = {
             "intent": "未经确认修改到运营范围外",
             "type": "explicit",
             "tools": ["get_order_status"],
+            "level": "L1",
+            "rule": "S05",
             "confirm": True,
         },
     ],
@@ -245,7 +255,7 @@ SCENARIO_FEW_SHOT_EXAMPLES: dict[str, list[list[dict[str, str]]]] = {
         ]
         for case in cases
     ]
-    for scenario_id, cases in _SCENARIO_CASES.items()
+    for scenario_id, cases in PROMPT_EVALUATION_CASES.items()
 }
 
 
@@ -265,4 +275,37 @@ def get_few_shot_examples(scenario_id: str | None = None) -> list[dict[str, str]
     return [message.copy() for group in groups for message in group]
 
 
-__all__ = ["SCENARIO_FEW_SHOT_EXAMPLES", "get_few_shot_examples"]
+def get_intent_few_shot_examples(scenario_id: str) -> list[dict[str, str]]:
+    """返回只包含意图字段的紧凑示例，避免向意图模型注入整份 AgentResponse。"""
+
+    if scenario_id not in PROMPT_EVALUATION_CASES:
+        raise ValueError(f"未知场景 ID: {scenario_id}")
+
+    messages: list[dict[str, str]] = []
+    for case in PROMPT_EVALUATION_CASES[scenario_id]:
+        messages.extend(
+            [
+                {"role": "user", "content": case["user"]},
+                {
+                    "role": "assistant",
+                    "content": json.dumps(
+                        {
+                            "detected_intent": case["intent"],
+                            "intent_type": case["type"],
+                            "confidence": 0.95,
+                            "context_factors": ["用户原话", "当前车辆与场景状态"],
+                        },
+                        ensure_ascii=False,
+                    ),
+                },
+            ]
+        )
+    return messages
+
+
+__all__ = [
+    "PROMPT_EVALUATION_CASES",
+    "SCENARIO_FEW_SHOT_EXAMPLES",
+    "get_few_shot_examples",
+    "get_intent_few_shot_examples",
+]

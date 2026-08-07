@@ -11,10 +11,12 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from mock.scenario_presets import SCENARIO_IDS, load_scenario
 from models.agent_output import AgentResponse
 from prompts.few_shot_examples import (
+    PROMPT_EVALUATION_CASES,
     SCENARIO_FEW_SHOT_EXAMPLES,
     get_few_shot_examples,
+    get_intent_few_shot_examples,
 )
-from prompts.system_prompt import build_system_prompt
+from prompts.system_prompt import build_intent_system_prompt, build_system_prompt
 
 
 TEMPLATE_DIR = Path(__file__).parents[1] / "prompts" / "templates"
@@ -35,6 +37,16 @@ def test_system_prompt_contains_role_tools_rules_schema_and_state() -> None:
     assert vehicle.vehicle_id in prompt
 
 
+def test_intent_system_prompt_is_stage_specific_and_compact() -> None:
+    prompt = build_intent_system_prompt("robotaxi")
+
+    assert "Robotaxi 乘客服务" in prompt
+    assert "意图分类器" in prompt
+    assert "不要规划工具" in prompt
+    assert "output_json_schema" not in prompt
+    assert len(prompt) < 300
+
+
 def test_each_scenario_has_two_complete_examples() -> None:
     assert set(SCENARIO_FEW_SHOT_EXAMPLES) == set(SCENARIO_IDS)
 
@@ -51,6 +63,32 @@ def test_all_examples_flatten_to_32_messages() -> None:
     assert len(messages) == 32
     assert sum(message["role"] == "user" for message in messages) == 16
     assert sum(message["role"] == "assistant" for message in messages) == 16
+
+
+def test_prompt_evaluation_matrix_covers_sixteen_inputs() -> None:
+    assert set(PROMPT_EVALUATION_CASES) == set(SCENARIO_IDS)
+    assert sum(len(cases) for cases in PROMPT_EVALUATION_CASES.values()) == 16
+    for cases in PROMPT_EVALUATION_CASES.values():
+        for case in cases:
+            assert case["user"]
+            assert case["intent"]
+            assert case["type"] in {"explicit", "implicit", "urgent"}
+            assert isinstance(case["tools"], list)
+
+
+def test_intent_few_shots_are_compact_stage_specific_json() -> None:
+    messages = get_intent_few_shot_examples("fatigue_driving")
+
+    assert len(messages) == 4
+    assistant_payloads = [
+        json.loads(message["content"])
+        for message in messages
+        if message["role"] == "assistant"
+    ]
+    assert all(set(payload) == {
+        "detected_intent", "intent_type", "confidence", "context_factors"
+    } for payload in assistant_payloads)
+    assert all("service_plan" not in message["content"] for message in messages)
 
 
 def test_unknown_few_shot_scenario_is_rejected() -> None:

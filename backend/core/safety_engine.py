@@ -248,7 +248,10 @@ class SafetyEngine:
         ).lower()
         help_signal = any(
             keyword in normalized_message
-            for keyword in ("求助", "救命", "身体不适", "不舒服", "紧急帮助", "help")
+            for keyword in (
+                "求助", "救命", "身体不适", "不舒服", "不太舒服",
+                "要吐", "威胁", "紧急帮助", "help",
+            )
         )
         traffic_incidents = (environment_data.get("traffic") or {}).get("incidents") or []
         pickup_request = any(

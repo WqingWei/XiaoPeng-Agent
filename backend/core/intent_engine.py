@@ -12,12 +12,11 @@ from pydantic import BaseModel, Field
 from core.context_manager import ConversationContext
 from core.llm_utils import (
     create_chat_model,
-    parse_json_object,
-    response_content,
+    invoke_structured,
     template_environment,
 )
-from prompts.few_shot_examples import get_few_shot_examples
-from prompts.system_prompt import build_system_prompt
+from prompts.few_shot_examples import get_intent_few_shot_examples
+from prompts.system_prompt import build_intent_system_prompt
 
 
 class IntentResult(BaseModel):
@@ -57,24 +56,21 @@ class IntentEngine:
                 message.model_dump(mode="json") for message in context.messages[-10:]
             ],
         )
-        system_prompt = build_system_prompt(
-            context.vehicle.mode,
-            context.vehicle,
-            context.environment,
-            context.order,
-            context.user_profile,
-        )
+        system_prompt = build_intent_system_prompt(context.vehicle.mode)
         messages: list[Any] = [SystemMessage(content=system_prompt)]
         if context.scenario_id:
-            for example in get_few_shot_examples(context.scenario_id):
+            for example in get_intent_few_shot_examples(context.scenario_id):
                 message_class = HumanMessage if example["role"] == "user" else AIMessage
                 messages.append(message_class(content=example["content"]))
         messages.append(HumanMessage(content=prompt))
 
         try:
-            response = await self.llm.ainvoke(messages)
-            data = parse_json_object(response_content(response))
-            result = IntentResult.model_validate(data)
+            result = await invoke_structured(
+                self.llm,
+                messages,
+                IntentResult,
+                task_name="意图分析",
+            )
             result.original_message = user_message.strip()
             result.entities = {**self._extract_entities(user_message), **result.entities}
             return result
@@ -108,28 +104,48 @@ class IntentEngine:
         context: ConversationContext,
     ) -> IntentResult:
         message = user_message.strip().lower()
-        urgent_words = ("救命", "求助", "身体不适", "不舒服", "发烧", "事故", "sos", "help")
+        urgent_words = (
+            "救命", "求助", "身体不适", "不舒服", "不太舒服", "发烧",
+            "要吐", "威胁", "报警", "事故", "sos", "help",
+        )
 
         intent_type: Literal["explicit", "implicit", "urgent"] = "explicit"
         if any(word in message for word in urgent_words):
             detected = "乘客紧急求助" if context.vehicle.mode == "robotaxi" else "紧急安全求助"
             intent_type = "urgent"
-        elif any(word in message for word in ("困", "疲劳", "想睡")):
+        elif any(word in message for word in ("困", "疲劳", "想睡")) or (
+            context.scenario_id == "fatigue_driving"
+            and any(word in message for word in ("继续开", "不用休息", "不停车"))
+        ):
             detected = "疲劳驾驶干预"
-            intent_type = "implicit"
+            intent_type = (
+                "urgent"
+                if any(word in message for word in ("继续开", "不用休息", "不停车"))
+                else "implicit"
+            )
+        elif "儿童锁" in message:
+            detected = "关闭儿童锁" if any(word in message for word in ("关闭", "关掉", "关")) else "儿童安全锁控制"
         elif any(word in message for word in ("宝宝", "孩子", "儿童")):
             detected = "亲子出行安全与舒适服务"
             intent_type = "implicit"
         elif any(word in message for word in ("充电", "续航", "补能")):
-            detected = "长途补能规划"
+            if "充电" in message and any(word in message for word in ("开走", "移动", "直接走")):
+                detected = "充电中移动车辆"
+                intent_type = "urgent"
+            else:
+                detected = "长途补能规划"
         elif any(word in message for word in ("停车", "车位", "快到公司")):
             detected = "通勤到达停车准备"
             intent_type = "implicit" if "快到" in message else "explicit"
         elif any(word in message for word in ("找不到车", "车在哪", "还没来")):
-            detected = "定位 Robotaxi 车辆"
+            detected = "找车失败升级人工" if "人工" in message else "定位 Robotaxi 车辆"
         elif any(word in message for word in ("上车点", "施工", "禁停", "高速路边")):
             detected = "处理异常上车点"
-        elif any(word in message for word in ("改去", "改目的地", "不去那里")):
+            if "高速路边" in message or "危险" in message:
+                intent_type = "urgent"
+        elif any(word in message for word in ("改去", "改目的地", "不去那里", "运营范围外")) or (
+            context.scenario_id == "change_destination" and "不用确认" in message
+        ):
             detected = "修改行程目的地"
         elif any(word in message for word in ("空调", "冷", "热")):
             detected = "调节座舱空调"

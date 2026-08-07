@@ -81,4 +81,17 @@ def build_system_prompt(
     )
 
 
-__all__ = ["build_system_prompt"]
+def build_intent_system_prompt(mode: Literal["owner", "robotaxi"]) -> str:
+    """构建意图分类专用的轻量系统 Prompt，避免注入工具与最终响应 Schema。"""
+
+    role_name = "车主自驾服务" if mode == "owner" else "Robotaxi 乘客服务"
+    return (
+        "你是小鹏 AI 出行服务管家的意图分类器。"
+        f"当前模式是 {mode}（{role_name}）。"
+        "只判断用户此刻的主意图、意图类型、置信度和关键上下文；"
+        "不要规划工具、生成用户回复或输出分析过程。"
+        "安全冲突和乘客求助必须优先识别，输出必须严格符合用户消息中的 JSON 格式。"
+    )
+
+
+__all__ = ["build_intent_system_prompt", "build_system_prompt"]

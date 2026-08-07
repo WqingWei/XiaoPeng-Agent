@@ -14,8 +14,7 @@ from core.context_manager import ConversationContext
 from core.intent_engine import IntentResult
 from core.llm_utils import (
     create_chat_model,
-    parse_json_object,
-    response_content,
+    invoke_structured,
     template_environment,
 )
 from core.safety_engine import SafetyResult
@@ -64,7 +63,12 @@ class Orchestrator:
         # 工具层当前使用全局 ToolContext；串行化可防止不同会话状态串线。
         self._execution_lock = asyncio.Lock()
 
-    def _tool_payload(self) -> list[dict[str, Any]]:
+    def _tool_payload(
+        self,
+        intent: IntentResult,
+        safety_result: SafetyResult,
+    ) -> list[dict[str, Any]]:
+        relevant = self._relevant_tool_names(intent, safety_result)
         return [
             {
                 "name": tool.name,
@@ -72,7 +76,42 @@ class Orchestrator:
                 "parameters": tool.args,
             }
             for tool in self.tools.values()
+            if tool.name in relevant
         ]
+
+    def _relevant_tool_names(
+        self,
+        intent: IntentResult,
+        safety_result: SafetyResult,
+    ) -> set[str]:
+        """为标准意图裁剪工具 Schema，未知意图仍返回模式内完整工具集。"""
+
+        text = f"{intent.detected_intent} {intent.original_message}".lower()
+        rule_ids = {rule.rule_id for rule in safety_result.triggered_rules}
+        if "S04" in rule_ids or any(word in text for word in ("求助", "救命", "不舒服", "威胁")):
+            return {"emergency_stop", "call_emergency", "transfer_human"}
+        if "S01" in rule_ids:
+            return {"safety_alert_tool", "search_poi", "ac_control", "seat_control", "media_control"}
+        if "儿童" in text or "亲子" in text or "宝宝" in text:
+            return {"child_lock_control", "ac_control", "media_control", "search_poi", "navigate_to"}
+        if any(word in text for word in ("充电", "续航", "补能")):
+            return {"search_charger", "navigate_to", "get_vehicle_status"}
+        if any(word in text for word in ("停车", "车位", "通勤到达")):
+            return {"search_parking", "navigate_to"}
+        if any(word in text for word in ("找车", "车辆在哪", "robotaxi 车辆", "车在哪")):
+            return {"locate_vehicle", "signal_vehicle", "transfer_human"}
+        if any(word in text for word in ("上车点", "施工", "禁停", "高速路边")):
+            return {"search_poi", "get_order_status", "modify_order"}
+        if any(word in text for word in ("目的地", "改去", "运营范围")):
+            return {"get_order_status", "traffic_info", "modify_order", "search_charger"}
+        if "空调" in text:
+            return {"ac_control"}
+        if any(word in text for word in ("媒体", "音乐", "视频", "播放")):
+            return {"media_control"}
+        if "导航" in text:
+            return {"navigate_to", "traffic_info", "search_charger", "search_parking"}
+
+        return set(self.tools)
 
     async def plan(
         self,
@@ -84,19 +123,20 @@ class Orchestrator:
             intent=intent.model_dump(mode="json"),
             safety=safety_result.model_dump(mode="json"),
             context=context.prompt_snapshot(),
-            tools=self._tool_payload(),
+            tools=self._tool_payload(intent, safety_result),
         )
         try:
-            response = await self.llm.ainvoke(
+            candidate = await invoke_structured(
+                self.llm,
                 [
                     SystemMessage(
                         content="你是严格遵守安全规则的出行服务工具编排器。"
                     ),
                     HumanMessage(content=prompt),
-                ]
+                ],
+                OrchestrationPlan,
+                task_name="服务规划",
             )
-            data = parse_json_object(response_content(response))
-            candidate = OrchestrationPlan.model_validate(data)
             normalized = self._normalize_plan(candidate, intent, safety_result)
             if candidate.steps and not normalized.steps and not normalized.requires_confirmation:
                 raise ValueError("模型计划中的步骤均无效或被安全规则拦截")
@@ -267,6 +307,13 @@ class Orchestrator:
                     reason_rejected="车辆仍在充电，安全规则禁止移动",
                 )
             )
+        elif "儿童锁" in message and any(word in message for word in ("关闭", "关掉", "关")):
+            alternatives.append(
+                AlternativeConsidered(
+                    option="关闭儿童安全锁",
+                    reason_rejected="检测到后排儿童，安全规则要求保持儿童锁启用",
+                )
+            )
         elif "补能" in detected or "充电" in message or "续航" in message or "S10" in rule_ids:
             add(
                 "search_charger",
@@ -295,6 +342,13 @@ class Orchestrator:
                 {"order_id": "", "action": "flash_and_honk"},
                 1,
             )
+            if "人工" in message or "升级人工" in detected:
+                add(
+                    "transfer_human",
+                    "转接人工协助乘客找车",
+                    {"priority": "high", "context": intent.original_message},
+                    1,
+                )
         elif "上车点" in detected or "上车点" in message or "施工" in message:
             add(
                 "search_poi",

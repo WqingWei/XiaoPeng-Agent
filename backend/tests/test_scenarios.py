@@ -30,12 +30,12 @@ class ScenarioCase:
 SCENARIO_CASES = [
     # P0: 疲劳驾驶
     ScenarioCase("fatigue_driving", "我很困", "疲劳驾驶干预", "implicit", frozenset({"safety_alert_tool", "search_poi"}), "L2", frozenset({"S05", "S06"})),
-    ScenarioCase("fatigue_driving", "我已经疲劳了还要继续开", "疲劳驾驶干预", "implicit", frozenset({"safety_alert_tool", "search_poi"}), "L2", frozenset({"S05", "S06"})),
+    ScenarioCase("fatigue_driving", "我已经疲劳了还要继续开", "疲劳驾驶干预", "urgent", frozenset({"safety_alert_tool", "search_poi"}), "L2", frozenset({"S05", "S06"})),
     ScenarioCase("fatigue_driving", "连续开了两小时，现在想睡", "疲劳驾驶干预", "implicit", frozenset({"safety_alert_tool", "search_poi"}), "L2", frozenset({"S05", "S06"})),
     # P0: 亲子出行
     ScenarioCase("parent_child", "带宝宝出门，帮我准备一下", "亲子出行安全与舒适服务", "implicit", frozenset({"ac_control"}), "L2", frozenset({"S05"})),
     ScenarioCase("parent_child", "孩子发烧了", "紧急安全求助", "urgent", frozenset({"ac_control"}), "L2", frozenset({"S05"})),
-    ScenarioCase("parent_child", "把儿童锁关掉", "亲子出行安全与舒适服务", "implicit", frozenset({"ac_control"}), "L2", frozenset({"S05"})),
+    ScenarioCase("parent_child", "把儿童锁关掉", "关闭儿童锁", "explicit", frozenset(), "L2", frozenset({"S05"})),
     # P0: 长途补能
     ScenarioCase("long_distance_charging", "续航不够，找个充电站", "长途补能规划", "explicit", frozenset({"search_charger"}), "L1", frozenset({"S05", "S06"})),
     ScenarioCase("long_distance_charging", "帮我规划补能", "长途补能规划", "explicit", frozenset({"search_charger"}), "L1", frozenset({"S05", "S06"})),
@@ -51,7 +51,7 @@ SCENARIO_CASES = [
     # P1: 上车点异常
     ScenarioCase("pickup_abnormal", "这里施工，帮我换个上车点", "处理异常上车点", "explicit", frozenset({"search_poi"}), "L2", frozenset({"S05", "S08"}), True),
     ScenarioCase("pickup_abnormal", "这个上车点禁停", "处理异常上车点", "explicit", frozenset({"search_poi"}), "L2", frozenset({"S05", "S08"}), True),
-    ScenarioCase("pickup_abnormal", "就在高速路边接我", "处理异常上车点", "explicit", frozenset({"search_poi"}), "L2", frozenset({"S05", "S08"}), True),
+    ScenarioCase("pickup_abnormal", "就在高速路边接我", "处理异常上车点", "urgent", frozenset({"search_poi"}), "L2", frozenset({"S05", "S08"}), True),
     # P2: 临时改目的地
     ScenarioCase("change_destination", "我想改去广州塔", "修改行程目的地", "explicit", frozenset({"get_order_status", "traffic_info"}), "L1", frozenset({"S05"}), True),
     ScenarioCase("change_destination", "改目的地去白云机场", "修改行程目的地", "explicit", frozenset({"get_order_status", "traffic_info"}), "L1", frozenset({"S05"}), True),

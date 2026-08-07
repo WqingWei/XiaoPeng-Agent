@@ -73,6 +73,33 @@ async def test_intent_engine_parses_llm_json_and_extracts_entities() -> None:
 
 
 @pytest.mark.asyncio
+async def test_intent_engine_retries_invalid_output_twice_before_success() -> None:
+    llm = QueueLLM(
+        [
+            "不是 JSON",
+            '{"detected_intent":"疲劳驾驶","intent_type":"unknown"}',
+            json.dumps(
+                {
+                    "detected_intent": "疲劳驾驶干预",
+                    "intent_type": "implicit",
+                    "confidence": 0.96,
+                    "context_factors": ["连续驾驶时间过长"],
+                },
+                ensure_ascii=False,
+            ),
+        ]
+    )
+    _, context = _context("fatigue_driving")
+
+    result = await IntentEngine(llm).analyze("我有点困", context)
+
+    assert result.detected_intent == "疲劳驾驶干预"
+    assert result.confidence == 0.96
+    assert len(llm.calls) == 3
+    assert "目标 JSON Schema" in llm.calls[-1][-1].content
+
+
+@pytest.mark.asyncio
 async def test_intent_engine_falls_back_without_network() -> None:
     _, context = _context("fatigue_driving")
 
@@ -135,6 +162,52 @@ async def test_orchestrator_filters_hallucinated_and_unsafe_steps() -> None:
 
     assert [step.tool for step in plan.steps] == ["search_parking"]
     assert plan.total_estimated_time_s == 2
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_retries_invalid_json_before_valid_plan() -> None:
+    valid_plan = {
+        "summary": "查询车辆",
+        "steps": [{
+            "step_id": 1,
+            "action": "查询车辆状态",
+            "tool": "get_vehicle_status",
+            "params": {},
+            "dependency": None,
+            "estimated_duration_s": 1,
+        }],
+        "total_estimated_time_s": 1,
+    }
+    llm = QueueLLM(["[]", json.dumps(valid_plan, ensure_ascii=False)])
+    _, context = _context("commute_arrival")
+    intent = IntentResult(detected_intent="查询车辆状态", original_message="查询车辆状态")
+
+    plan = await Orchestrator(llm).plan(intent, SafetyResult(), context)
+
+    assert [step.tool for step in plan.steps] == ["get_vehicle_status"]
+    assert len(llm.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_prompt_only_includes_tools_relevant_to_intent() -> None:
+    llm = QueueLLM(['{"summary":"疲劳干预","steps":[]}'])
+    _, context = _context("fatigue_driving")
+    intent = IntentResult(
+        detected_intent="疲劳驾驶干预",
+        intent_type="implicit",
+        original_message="我有点困",
+    )
+    safety = SafetyEngine().check(
+        context.vehicle, context.environment, intent, intent.original_message
+    )
+
+    await Orchestrator(llm).plan(intent, safety, context)
+
+    planning_prompt = llm.calls[0][-1].content
+    assert '"name": "search_poi"' in planning_prompt
+    assert '"name": "safety_alert_tool"' in planning_prompt
+    assert '"name": "cancel_order"' not in planning_prompt
+    assert '"name": "search_parking"' not in planning_prompt
 
 
 @pytest.mark.asyncio
@@ -219,6 +292,37 @@ async def test_output_formatter_builds_complete_agent_response() -> None:
     assert response.reasoning.detected_intent == "通勤停车准备"
     assert response.follow_up.needs_confirmation
     assert response.session_id == "session"
+
+
+@pytest.mark.asyncio
+async def test_output_formatter_retries_twice_then_uses_fallback() -> None:
+    llm = QueueLLM(["不是 JSON", "{}", '{"user_response":"   "}'])
+    _, context = _context("commute_arrival")
+    intent = IntentResult(detected_intent="查询车辆状态")
+    plan = OrchestrationPlan(summary="无需操作")
+
+    response = await OutputFormatter(llm).format(
+        intent, plan, [], SafetyResult(), context
+    )
+
+    assert response.user_response == "我已理解您的需求，目前没有需要立即执行的操作。"
+    assert len(llm.calls) == 3
+
+
+@pytest.mark.asyncio
+async def test_fallback_response_localizes_tool_output_and_ignores_irrelevant_alert() -> None:
+    _, context = _context("long_distance_charging")
+    agent = Agent(llm=FailingLLM())
+    agent.context_manager.reset("localized", "long_distance_charging")
+
+    response = await agent.process("localized", "续航不够，找个充电站")
+
+    assert "小鹏自营" in response.user_response
+    assert "无法播放视频" not in response.user_response
+    assert not any(
+        token in response.user_response
+        for token in ("driver", "rear", "service_area", "parking_lot")
+    )
 
 
 SCENARIOS = [

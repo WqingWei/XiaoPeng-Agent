@@ -239,7 +239,7 @@ def test_real_scenarios_map_to_expected_rules(engine: SafetyEngine) -> None:
     assert "S01" in _rule_ids(engine.check(fatigue_vehicle, fatigue_env))
     assert "S02" in _rule_ids(engine.check(parent_vehicle, parent_env))
     assert "S04" in _rule_ids(
-        engine.check(help_vehicle, help_env, user_message="我身体不舒服，需要帮助")
+        engine.check(help_vehicle, help_env, user_message="我不太舒服，需要帮助")
     )
 
 

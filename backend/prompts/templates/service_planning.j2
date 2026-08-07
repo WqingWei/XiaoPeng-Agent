@@ -11,6 +11,14 @@
 3. dependency 只能引用更早的 step_id；无依赖填 null。
 4. 修改订单、取消订单等有外部影响的动作，未确认前只能查询和说明影响。
 5. 使用完成意图所需的最少步骤，不编造执行结果。
+6. 先检查上下文现状：已经启用的功能不要重复调用；查询和控制分开，后一步依赖前一步时必须填写 dependency。
+7. 疲劳驾驶优先告警、搜索休息区并提供舒适干预；用户拒绝休息时不得规划继续长途驾驶。
+8. 亲子出行仅在儿童锁未启用时调用 child_lock_control；用户要求关闭且后排有儿童时不得调用任何关闭或替代控制。
+9. 找不到 Robotaxi 时先 locate_vehicle 再 signal_vehicle；用户明确要求人工时追加 transfer_human。
+10. 异常上车点先 search_poi，确认前不得 modify_order；危险上车点必须提供安全替代位置。
+11. 修改目的地先 get_order_status 并评估 traffic_info，未确认前不得 modify_order；要求跳过确认或超出运营范围时仍必须保留确认。
+12. 乘客身体不适或人身威胁时按 emergency_stop → call_emergency → transfer_human 编排；身体不适呼叫120，人身威胁呼叫110。
+13. params 必须符合工具参数 Schema；禁止传入“待定”等占位值，也不要为了展示能力增加无关步骤。
 
 只输出一个 JSON 对象，不要输出 Markdown：
 {

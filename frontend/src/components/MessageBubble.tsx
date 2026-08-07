@@ -15,8 +15,13 @@ function formatTime(timestamp: string): string {
 }
 
 export function MessageBubble({ message }: { message: ChatMessage }) {
-  const setSelectedResponse = useChatStore((state) => state.setSelectedResponse);
+  const setSelectedResponse = useChatStore(
+    (state) => state.setSelectedResponse,
+  );
   const setAgentDrawerOpen = useAppStore((state) => state.setAgentDrawerOpen);
+  const setAgentPanelCollapsed = useAppStore(
+    (state) => state.setAgentPanelCollapsed,
+  );
 
   if (message.role === "system") {
     return (
@@ -32,30 +37,59 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
   const Icon = isUser ? CircleUserRound : Bot;
   return (
-    <article className={`flex gap-2.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
-      <div className={`mt-1 grid size-7 shrink-0 place-items-center rounded-lg ${isUser ? "bg-xpeng-green text-primary-foreground" : "bg-white/8 text-xpeng-green"}`}>
+    <article
+      className={`flex gap-2.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}
+    >
+      <div
+        className={`mt-1 grid size-7 shrink-0 place-items-center rounded-lg ${isUser ? "bg-xpeng-green text-primary-foreground" : "bg-white/8 text-xpeng-green"}`}
+      >
         <Icon className="size-4" aria-hidden="true" />
       </div>
-      <div className={`min-w-0 max-w-[82%] ${isUser ? "items-end" : "items-start"}`}>
-        <div className={`rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${isUser ? "rounded-tr-sm bg-xpeng-green text-primary-foreground" : "rounded-tl-sm border border-white/10 bg-card"}`}>
+      <div
+        className={`min-w-0 max-w-[82%] ${isUser ? "items-end" : "items-start"}`}
+      >
+        <div
+          className={`rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${isUser ? "rounded-tr-sm bg-xpeng-green text-primary-foreground" : "rounded-tl-sm border border-white/10 bg-card"}`}
+        >
           {isUser ? (
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
             <ReactMarkdown
               components={{
-                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                ul: ({ children }) => <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>,
-                ol: ({ children }) => <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>,
-                code: ({ children }) => <code className="rounded bg-black/30 px-1 py-0.5 font-mono text-xs text-xpeng-green">{children}</code>,
-                strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                p: ({ children }) => (
+                  <p className="mb-2 last:mb-0">{children}</p>
+                ),
+                ul: ({ children }) => (
+                  <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>
+                ),
+                ol: ({ children }) => (
+                  <ol className="my-2 list-decimal space-y-1 pl-5">
+                    {children}
+                  </ol>
+                ),
+                code: ({ children }) => (
+                  <code className="rounded bg-black/30 px-1 py-0.5 font-mono text-xs text-xpeng-green">
+                    {children}
+                  </code>
+                ),
+                strong: ({ children }) => (
+                  <strong className="font-semibold text-foreground">
+                    {children}
+                  </strong>
+                ),
               }}
             >
               {message.content}
             </ReactMarkdown>
           )}
         </div>
-        <div className={`mt-1 flex items-center gap-2 px-1 ${isUser ? "justify-end" : "justify-start"}`}>
-          <time className="text-[10px] text-muted-foreground" dateTime={message.timestamp}>
+        <div
+          className={`mt-1 flex items-center gap-2 px-1 ${isUser ? "justify-end" : "justify-start"}`}
+        >
+          <time
+            className="text-[10px] text-muted-foreground"
+            dateTime={message.timestamp}
+          >
             {formatTime(message.timestamp)}
           </time>
           {message.agentResponse ? (
@@ -66,7 +100,12 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
                 if (window.matchMedia("(max-width: 1279px)").matches) {
                   setAgentDrawerOpen(true);
                 } else {
-                  document.getElementById("agent-panel")?.scrollIntoView({ behavior: "smooth" });
+                  setAgentPanelCollapsed(false);
+                  window.requestAnimationFrame(() => {
+                    document
+                      .getElementById("agent-panel")
+                      ?.scrollIntoView({ behavior: "smooth" });
+                  });
                 }
               }}
               size="xs"

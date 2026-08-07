@@ -45,6 +45,7 @@ export function SceneSelector() {
   const clearMessages = useChatStore((state) => state.clearMessages);
   const addMessage = useChatStore((state) => state.addMessage);
   const setError = useChatStore((state) => state.setError);
+  const setSceneTransition = useChatStore((state) => state.setSceneTransition);
   const setSnapshot = useVehicleStore((state) => state.setSnapshot);
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
@@ -52,8 +53,12 @@ export function SceneSelector() {
     if (loadingId) return;
     setLoadingId(scenario.id);
     setError(null);
+    setSceneTransition("exiting");
     try {
-      const response = await switchScenario(sessionId, scenario.id);
+      const [response] = await Promise.all([
+        switchScenario(sessionId, scenario.id),
+        new Promise((resolve) => window.setTimeout(resolve, 180)),
+      ]);
       clearMessages();
       setCurrentScenario(response.scenario_id);
       setMode(response.scenario.mode);
@@ -62,9 +67,12 @@ export function SceneSelector() {
         role: "system",
         content: `${response.scenario.title}已就绪：${response.scenario.description}`,
       });
+      setSceneTransition("entering");
+      await new Promise((resolve) => window.setTimeout(resolve, 300));
     } catch (error) {
       setError(error instanceof Error ? error.message : "场景加载失败，请稍后重试。");
     } finally {
+      setSceneTransition("idle");
       setLoadingId(null);
     }
   }

@@ -2,12 +2,12 @@ import { Braces, CheckCircle2, CircleX, SkipForward } from "lucide-react";
 
 import type { ServiceStep, ToolExecutionResult, ToolSelectionReason } from "@/types";
 
-export function ToolCallCard({ step, reason, result }: { step: ServiceStep; reason?: ToolSelectionReason; result?: ToolExecutionResult }) {
+export function ToolCallCard({ step, reason, result, index = 0 }: { step: ServiceStep; reason?: ToolSelectionReason; result?: ToolExecutionResult; index?: number }) {
   const status = result?.skipped ? "已跳过" : result?.success ? "执行成功" : "执行失败";
   const StatusIcon = result?.skipped ? SkipForward : result?.success ? CheckCircle2 : CircleX;
   const statusClass = result?.skipped ? "text-yellow-300" : result?.success ? "text-xpeng-green" : "text-red-300";
   return (
-    <div className="rounded-xl border border-white/8 bg-black/15 p-3">
+    <div className="tool-step-enter rounded-xl border border-white/8 bg-black/15 p-3" style={{ animationDelay: `${index * 90}ms` }}>
       <div className="flex items-center justify-between gap-2">
         <code className="text-xs font-semibold text-xpeng-green">{step.tool}</code>
         <span className="rounded-full bg-xpeng-green/10 px-2 py-0.5 text-[9px] text-xpeng-green">步骤 {step.step_id}</span>

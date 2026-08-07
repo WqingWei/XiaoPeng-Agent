@@ -12,7 +12,7 @@ export function ServicePlanCard({ plan }: { plan: ServicePlan }) {
       {plan.summary ? <p className="text-xs leading-5 text-muted-foreground">{plan.summary}</p> : null}
       <ol>
         {plan.steps.map((step, index) => (
-          <li key={step.step_id} className="relative flex gap-3 pb-4 last:pb-0">
+          <li key={step.step_id} className="tool-step-enter relative flex gap-3 pb-4 last:pb-0" style={{ animationDelay: `${index * 85}ms` }}>
             {index < plan.steps.length - 1 ? <span className="absolute top-7 bottom-0 left-3 w-px bg-xpeng-green/25" /> : null}
             <span className="relative z-10 grid size-6 shrink-0 place-items-center rounded-full bg-xpeng-green text-primary-foreground">
               <Check className="size-3.5" />

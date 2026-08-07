@@ -2,6 +2,7 @@
 
 import { BatteryCharging, CloudFog, CloudRain, CloudSun, Gauge, MapPin, Snowflake, Sun, type LucideIcon } from "lucide-react";
 
+import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { useAppStore, useVehicleStore } from "@/stores";
 
 const WEATHER_ICONS: Record<string, LucideIcon> = {
@@ -29,15 +30,15 @@ export function StatusBar() {
       </div>
       <div className="flex min-w-36 items-center gap-2">
         <BatteryCharging className="size-3.5 text-xpeng-green" />
-        <span>{vehicle ? `${batteryLevel}%` : "--"}</span>
+        <AnimatedNumber suffix="%" value={vehicle ? batteryLevel : null} />
         <div aria-label="车辆电量" aria-valuemax={100} aria-valuemin={0} aria-valuenow={batteryLevel} className="h-1 w-16 overflow-hidden rounded-full bg-white/10" role="progressbar">
-          <div className="h-full rounded-full bg-xpeng-green" style={{ width: `${batteryLevel}%` }} />
+          <div className="h-full rounded-full bg-xpeng-green transition-[width] duration-500 ease-out" style={{ width: `${batteryLevel}%` }} />
         </div>
       </div>
-      <div className="flex items-center gap-2"><Gauge className="size-3.5" /><span>{vehicle ? `${vehicle.speed} km/h` : "--"}</span></div>
+      <div className="flex items-center gap-2"><Gauge className="size-3.5" /><AnimatedNumber suffix=" km/h" value={vehicle?.speed ?? null} /></div>
       <div className="flex items-center gap-2"><span className="rounded bg-white/6 px-1.5 py-0.5 text-[9px]">{vehicle ? STATUS_LABELS[vehicle.driving_status] : "--"}</span><span>{vehicle?.mode === "robotaxi" ? "Robotaxi" : "车主模式"}</span></div>
       <div className="col-span-2 flex min-w-0 flex-1 items-center gap-2 sm:col-span-1"><MapPin className="size-3.5 shrink-0" /><span className="truncate">{vehicle?.location.address || "等待车辆状态"}</span></div>
-      <div className="flex items-center gap-2 sm:ml-auto"><WeatherIcon className="size-3.5" /><span>{environment ? `${environment.weather.temperature}°C` : "--"}</span></div>
+      <div className="flex items-center gap-2 sm:ml-auto"><WeatherIcon className="size-3.5" /><AnimatedNumber suffix="°C" value={environment?.weather.temperature ?? null} /></div>
     </footer>
   );
 }

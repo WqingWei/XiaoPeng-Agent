@@ -4,7 +4,7 @@ import { Bot, CircleUserRound, Info, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 import { Button } from "@/components/ui/button";
-import { useChatStore, type ChatMessage } from "@/stores";
+import { useAppStore, useChatStore, type ChatMessage } from "@/stores";
 
 function formatTime(timestamp: string): string {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -16,6 +16,7 @@ function formatTime(timestamp: string): string {
 
 export function MessageBubble({ message }: { message: ChatMessage }) {
   const setSelectedResponse = useChatStore((state) => state.setSelectedResponse);
+  const setAgentDrawerOpen = useAppStore((state) => state.setAgentDrawerOpen);
 
   if (message.role === "system") {
     return (
@@ -62,7 +63,11 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
               className="h-auto gap-1 px-0 py-0 text-[10px] text-muted-foreground hover:bg-transparent hover:text-xpeng-green"
               onClick={() => {
                 setSelectedResponse(message.agentResponse ?? null);
-                document.getElementById("agent-panel")?.scrollIntoView({ behavior: "smooth" });
+                if (window.matchMedia("(max-width: 1279px)").matches) {
+                  setAgentDrawerOpen(true);
+                } else {
+                  document.getElementById("agent-panel")?.scrollIntoView({ behavior: "smooth" });
+                }
               }}
               size="xs"
               variant="ghost"

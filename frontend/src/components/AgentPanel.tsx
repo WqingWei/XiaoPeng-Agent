@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, BrainCircuit, ListChecks, ShieldAlert, Wrench } from "lucide-react";
+import { Ban, BrainCircuit, ListChecks, ShieldAlert, Wrench, X } from "lucide-react";
 
 import { ForbiddenCard } from "@/components/ForbiddenCard";
 import { IntentCard } from "@/components/IntentCard";
@@ -9,35 +9,48 @@ import { ServicePlanCard } from "@/components/ServicePlanCard";
 import { ToolCallCard } from "@/components/ToolCallCard";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { useChatStore } from "@/stores";
 
-export function AgentPanel() {
+export function AgentPanel({ variant = "desktop", onClose }: { variant?: "desktop" | "drawer"; onClose?: () => void }) {
   const response = useChatStore((state) => state.selectedResponse);
+  const panelId = variant === "desktop" ? "agent-panel" : "agent-drawer-panel";
+  const panelClass = variant === "desktop"
+    ? "hidden min-h-0 min-w-0 flex-col border-l border-white/10 bg-card/75 xl:flex"
+    : "flex h-full min-h-0 min-w-0 flex-col bg-card";
 
   return (
-    <aside id="agent-panel" className="flex min-h-[520px] min-w-0 flex-col border-t border-white/10 bg-card/70 lg:min-h-0 lg:border-t-0 lg:border-l">
+    <aside id={panelId} className={panelClass}>
       <div className="border-b border-white/8 px-4 py-4">
         <p className="text-[10px] font-semibold tracking-[0.2em] text-xpeng-green">AGENT INSIGHTS</p>
         <div className="mt-1 flex items-center justify-between gap-2">
           <h2 className="text-base font-semibold">决策详情</h2>
-          {response ? <span className="text-[10px] text-muted-foreground">Turn {response.turn_id}</span> : null}
+          <div className="flex items-center gap-2">
+            {response ? <span className="text-[10px] text-muted-foreground">Turn {response.turn_id}</span> : null}
+            {variant === "drawer" ? (
+              <Button aria-label="关闭决策详情" onClick={onClose} size="icon-sm" variant="ghost">
+                <X className="size-4" />
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
         {response ? (
-          <Accordion className="px-3 py-2" defaultValue={["intent", "plan"]} multiple>
-            <DetailSection icon={BrainCircuit} label="意图分析" value="intent">
+          <Accordion key={`${response.session_id}-${response.turn_id}`} className="px-3 py-2" defaultValue={["intent", "plan"]} multiple>
+            <DetailSection icon={BrainCircuit} index={0} label="意图分析" value="intent">
               <IntentCard reasoning={response.reasoning} />
             </DetailSection>
-            <DetailSection count={response.service_plan.steps.length} icon={ListChecks} label="服务计划" value="plan">
+            <DetailSection count={response.service_plan.steps.length} icon={ListChecks} index={1} label="服务计划" value="plan">
               <ServicePlanCard plan={response.service_plan} />
             </DetailSection>
-            <DetailSection count={response.service_plan.steps.length} icon={Wrench} label="工具调用" value="tools">
+            <DetailSection count={response.service_plan.steps.length} icon={Wrench} index={2} label="工具调用" value="tools">
               <div className="space-y-2.5">
                 {response.service_plan.steps.length ? response.service_plan.steps.map((step) => (
                   <ToolCallCard
                     key={step.step_id}
+                    index={step.step_id - 1}
                     reason={response.reasoning.tool_selection_reasons.find((item) => item.tool === step.tool)}
                     result={response.tool_results.find((item) => item.step_id === step.step_id)}
                     step={step}
@@ -45,12 +58,12 @@ export function AgentPanel() {
                 )) : <EmptyDetail text="本轮没有工具调用" />}
               </div>
             </DetailSection>
-            <DetailSection count={response.safety_alerts.length} icon={ShieldAlert} label="安全警告" value="safety">
+            <DetailSection count={response.safety_alerts.length} icon={ShieldAlert} index={3} label="安全警告" value="safety">
               <div className="space-y-2.5">
                 {response.safety_alerts.length ? response.safety_alerts.map((alert, index) => <SafetyAlertCard key={`${alert.rule_id}-${index}`} alert={alert} />) : <EmptyDetail text="本轮未触发安全告警" />}
               </div>
             </DetailSection>
-            <DetailSection count={response.forbidden_actions.length} icon={Ban} label="禁止动作" value="forbidden">
+            <DetailSection count={response.forbidden_actions.length} icon={Ban} index={4} label="禁止动作" value="forbidden">
               <div className="space-y-2.5">
                 {response.forbidden_actions.length ? response.forbidden_actions.map((forbidden, index) => <ForbiddenCard key={`${forbidden.rule_id}-${index}`} forbidden={forbidden} />) : <EmptyDetail text="本轮没有禁止动作" />}
               </div>
@@ -70,9 +83,9 @@ export function AgentPanel() {
   );
 }
 
-function DetailSection({ value, label, icon: Icon, count, children }: { value: string; label: string; icon: typeof BrainCircuit; count?: number; children: React.ReactNode }) {
+function DetailSection({ value, label, icon: Icon, count, children, index }: { value: string; label: string; icon: typeof BrainCircuit; count?: number; children: React.ReactNode; index: number }) {
   return (
-    <AccordionItem className="border-white/8" value={value}>
+    <AccordionItem className="agent-card-enter border-white/8" style={{ animationDelay: `${index * 70}ms` }} value={value}>
       <AccordionTrigger className="px-1 hover:no-underline">
         <span className="flex items-center gap-2"><Icon className="size-4 text-xpeng-green" />{label}{count !== undefined ? <span className="rounded-full bg-white/6 px-1.5 py-0.5 text-[9px] text-muted-foreground">{count}</span> : null}</span>
       </AccordionTrigger>

@@ -142,15 +142,37 @@ async function validateSafetyColorSource() {
   }
 }
 
+async function validateStep14UiSource() {
+  const [styles, page, drawer, sceneSelector, statusBar] = await Promise.all([
+    readFile(new URL("../src/app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../src/app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/AgentDrawer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/SceneSelector.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../src/components/StatusBar.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(styles, /--xpeng-green: #00c15d/, "XPeng brand green missing");
+  assert.match(styles, /agent-card-in/, "agent card entrance animation missing");
+  assert.match(styles, /tool-step-highlight/, "tool step highlight animation missing");
+  assert.match(styles, /scene-content\[data-transition="exiting"\]/, "scene exit animation missing");
+  assert.match(page, /xl:grid-cols-\[240px_minmax\(0,1fr\)_400px\]/, "1280px desktop layout missing");
+  assert.match(drawer, /xl:hidden/, "responsive Agent drawer missing");
+  assert.match(drawer, /min-width: 1280px/, "drawer breakpoint guard missing");
+  assert.match(sceneSelector, /setSceneTransition\("exiting"\)/, "scene exit state missing");
+  assert.match(sceneSelector, /setSceneTransition\("entering"\)/, "scene enter state missing");
+  assert.match(statusBar, /AnimatedNumber/, "vehicle number animation missing");
+}
+
 const pageResponse = await fetch(frontendUrl);
 assert.equal(pageResponse.status, 200, "frontend should return HTTP 200");
 await validateSafetyColorSource();
+await validateStep14UiSource();
 
 const socket = await connectSocket();
 const summaries = [];
 try {
   for (const scenario of scenarios) {
-    const sessionId = `step13-${scenario.id}`;
+    const sessionId = `step14-${scenario.id}`;
     const state = await post("/api/scenario", {
       session_id: sessionId,
       scenario_id: scenario.id,

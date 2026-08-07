@@ -15,6 +15,7 @@ export function ChatPanel() {
   const thinkingStep = useChatStore((state) => state.thinkingStep);
   const isProcessing = useChatStore((state) => state.isProcessing);
   const error = useChatStore((state) => state.error);
+  const sceneTransition = useChatStore((state) => state.sceneTransition);
   const endRef = useRef<HTMLDivElement>(null);
   const suggestedReplies = useMemo(
     () =>
@@ -42,7 +43,11 @@ export function ChatPanel() {
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-5 sm:px-6">
+        <div
+          aria-busy={sceneTransition !== "idle"}
+          className="scene-content mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-5 sm:px-6"
+          data-transition={sceneTransition}
+        >
           {messages.length ? (
             messages.map((message) => <MessageBubble key={message.id} message={message} />)
           ) : (

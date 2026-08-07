@@ -3,6 +3,7 @@ import { create } from "zustand";
 import type { AgentResponse, ThinkingStep } from "@/types";
 
 export type ChatRole = "user" | "assistant" | "system";
+export type SceneTransition = "idle" | "exiting" | "entering";
 
 export interface ChatMessage {
   id: string;
@@ -21,12 +22,14 @@ interface ChatState {
   thinkingStep: ThinkingStep | null;
   isProcessing: boolean;
   error: string | null;
+  sceneTransition: SceneTransition;
   addMessage: (message: NewChatMessage) => string;
   clearMessages: () => void;
   setSelectedResponse: (response: AgentResponse | null) => void;
   setThinkingStep: (step: ThinkingStep | null) => void;
   setProcessing: (isProcessing: boolean) => void;
   setError: (error: string | null) => void;
+  setSceneTransition: (sceneTransition: SceneTransition) => void;
 }
 
 function createMessageId(): string {
@@ -42,6 +45,7 @@ export const useChatStore = create<ChatState>((set) => ({
   thinkingStep: null,
   isProcessing: false,
   error: null,
+  sceneTransition: "idle",
   addMessage: (message) => {
     const id = message.id ?? createMessageId();
     const nextMessage: ChatMessage = {
@@ -67,4 +71,5 @@ export const useChatStore = create<ChatState>((set) => ({
   setThinkingStep: (thinkingStep) => set({ thinkingStep }),
   setProcessing: (isProcessing) => set({ isProcessing }),
   setError: (error) => set({ error }),
+  setSceneTransition: (sceneTransition) => set({ sceneTransition }),
 }));

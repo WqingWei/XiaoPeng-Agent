@@ -53,7 +53,8 @@ class IntentEngine:
             order=context.order.model_dump(mode="json") if context.order else None,
             user_profile=context.user_profile.model_dump(mode="json"),
             conversation_history=[
-                message.model_dump(mode="json") for message in context.messages[-10:]
+                message.model_dump(mode="json")
+                for message in context.messages_for_mode(history_limit=10)
             ],
         )
         system_prompt = build_intent_system_prompt(context.vehicle.mode)
@@ -164,8 +165,9 @@ class IntentEngine:
         ]
         if context.order:
             factors.append(f"订单状态={context.order.status}")
-        if context.messages:
-            factors.append(f"参考最近{min(len(context.messages), 10)}条对话")
+        current_mode_messages = context.messages_for_mode(history_limit=10)
+        if current_mode_messages:
+            factors.append(f"参考最近{len(current_mode_messages)}条对话")
 
         return IntentResult(
             detected_intent=detected,

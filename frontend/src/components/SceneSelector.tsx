@@ -99,8 +99,7 @@ export function SceneSelector() {
   const currentScenario = useAppStore((state) => state.currentScenario);
   const setCurrentScenario = useAppStore((state) => state.setCurrentScenario);
   const setMode = useAppStore((state) => state.setMode);
-  const clearMessages = useChatStore((state) => state.clearMessages);
-  const addMessage = useChatStore((state) => state.addMessage);
+  const hydrateMessages = useChatStore((state) => state.hydrateMessages);
   const setError = useChatStore((state) => state.setError);
   const setSceneTransition = useChatStore((state) => state.setSceneTransition);
   const setSnapshot = useVehicleStore((state) => state.setSnapshot);
@@ -119,14 +118,10 @@ export function SceneSelector() {
         switchScenario(sessionId, scenario.id),
         new Promise((resolve) => window.setTimeout(resolve, 180)),
       ]);
-      clearMessages();
       setCurrentScenario(response.scenario_id);
       setMode(response.scenario.mode);
       setSnapshot(response.state.vehicle, response.state.environment);
-      addMessage({
-        role: "system",
-        content: `${response.scenario.title}已就绪：${response.scenario.description}`,
-      });
+      hydrateMessages(response.state.messages);
       setSceneTransition("entering");
       await new Promise((resolve) => window.setTimeout(resolve, 300));
     } catch (error) {
@@ -149,14 +144,10 @@ export function SceneSelector() {
         clearScenario(sessionId),
         new Promise((resolve) => window.setTimeout(resolve, 180)),
       ]);
-      clearMessages();
       setCurrentScenario(null);
       setMode(response.mode);
       setSnapshot(response.state.vehicle, response.state.environment);
-      addMessage({
-        role: "system",
-        content: `已取消场景选择，当前为${response.mode === "owner" ? "车主自驾" : "Robotaxi"}自由对话模式。`,
-      });
+      hydrateMessages(response.state.messages);
       setSceneTransition("entering");
       await new Promise((resolve) => window.setTimeout(resolve, 300));
     } catch (error) {

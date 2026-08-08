@@ -22,8 +22,7 @@ export function ModeToggle() {
   const mode = useAppStore((state) => state.mode);
   const setMode = useAppStore((state) => state.setMode);
   const setCurrentScenario = useAppStore((state) => state.setCurrentScenario);
-  const clearMessages = useChatStore((state) => state.clearMessages);
-  const addMessage = useChatStore((state) => state.addMessage);
+  const hydrateMessages = useChatStore((state) => state.hydrateMessages);
   const setError = useChatStore((state) => state.setError);
   const setSceneTransition = useChatStore((state) => state.setSceneTransition);
   const setSnapshot = useVehicleStore((state) => state.setSnapshot);
@@ -39,14 +38,10 @@ export function ModeToggle() {
         switchAgentMode(sessionId, nextMode),
         new Promise((resolve) => window.setTimeout(resolve, 180)),
       ]);
-      clearMessages();
       setMode(response.mode);
       setCurrentScenario(response.scenario_id);
       setSnapshot(response.state.vehicle, response.state.environment);
-      addMessage({
-        role: "system",
-        content: `已切换至${response.mode === "owner" ? "车主自驾" : "Robotaxi"}模式，并加载「${response.scenario.title}」。`,
-      });
+      hydrateMessages(response.state.messages);
       setSceneTransition("entering");
       await new Promise((resolve) => window.setTimeout(resolve, 300));
     } catch (error) {

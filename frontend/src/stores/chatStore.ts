@@ -69,13 +69,15 @@ export const useChatStore = create<ChatState>((set) => ({
       error: null,
     }),
   hydrateMessages: (messages) => {
-    const hydrated = messages.map((message, index) => ({
-      id: `history-${index}-${message.timestamp}`,
-      role: message.role,
-      content: message.content,
-      timestamp: message.timestamp,
-      agentResponse: message.agent_response ?? undefined,
-    }));
+    const hydrated = messages
+      .filter((message) => message.role !== "system")
+      .map((message, index) => ({
+        id: `history-${index}-${message.timestamp}`,
+        role: message.role,
+        content: message.content,
+        timestamp: message.timestamp,
+        agentResponse: message.agent_response ?? undefined,
+      }));
     const selectedResponse = [...hydrated]
       .reverse()
       .find((message) => message.agentResponse)?.agentResponse;

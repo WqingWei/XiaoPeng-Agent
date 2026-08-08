@@ -6,10 +6,10 @@ from datetime import datetime
 from threading import RLock
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from core.persistence import PersistenceBackend
-from mock.scenario_presets import load_scenario
+from mock.scenario_presets import get_scenario_meta, load_scenario
 from models.environment import EnvironmentContext
 from models.order import OrderState
 from models.user_profile import UserProfile
@@ -21,6 +21,7 @@ class ConversationMessage(BaseModel):
 
     role: Literal["system", "user", "assistant"]
     content: str
+    mode: Literal["owner", "robotaxi"] | None = None
     timestamp: datetime = Field(default_factory=datetime.now)
     agent_response: dict[str, Any] | None = None
 
@@ -37,16 +38,37 @@ class ConversationContext(BaseModel):
     user_profile: UserProfile = Field(default_factory=UserProfile)
     turn_id: int = 0
 
+    @model_validator(mode="after")
+    def assign_legacy_message_modes(self) -> ConversationContext:
+        """将升级前未标记模式的历史归入快照当前模式。"""
+
+        for message in self.messages:
+            if message.mode is None:
+                message.mode = self.vehicle.mode
+        return self
+
+    def messages_for_mode(
+        self,
+        mode: Literal["owner", "robotaxi"] | None = None,
+        history_limit: int | None = None,
+    ) -> list[ConversationMessage]:
+        """返回指定模式的消息；默认使用当前车辆模式。"""
+
+        target_mode = mode or self.vehicle.mode
+        messages = [message for message in self.messages if message.mode == target_mode]
+        return messages[-history_limit:] if history_limit is not None else messages
+
     def prompt_snapshot(self, history_limit: int = 10) -> dict:
         """返回适合注入 Prompt 的精简、可序列化快照。"""
 
+        visible_messages = self.messages_for_mode(history_limit=history_limit)
         return {
             "session_id": self.session_id,
             "scenario_id": self.scenario_id,
             "turn_id": self.turn_id,
             "messages": [
                 message.model_dump(mode="json")
-                for message in self.messages[-history_limit:]
+                for message in visible_messages
             ],
             "vehicle": self.vehicle.model_dump(mode="json"),
             "environment": self.environment.model_dump(mode="json"),
@@ -108,6 +130,7 @@ class ContextManager:
             message = ConversationMessage(
                 role=role,
                 content=content.strip(),
+                mode=context.vehicle.mode,
                 agent_response=agent_response,
             )
             context.messages.append(message)
@@ -156,12 +179,69 @@ class ContextManager:
         )
         if system_message:
             context.messages.append(
-                ConversationMessage(role="system", content=system_message)
+                ConversationMessage(
+                    role="system",
+                    content=system_message,
+                    mode=vehicle.mode,
+                )
             )
         with self._lock:
             self._contexts[session_id] = context
             self._save(context)
         return context
+
+    def switch_scenario(
+        self,
+        session_id: str,
+        scenario_id: str,
+    ) -> ConversationContext:
+        """切换场景状态，同时保留当前会话历史与轮次。"""
+
+        vehicle, environment, order, user, system_message = load_scenario(scenario_id)
+        scenario_meta = get_scenario_meta(scenario_id)
+        with self._lock:
+            context = self.get_context(session_id)
+            context.scenario_id = scenario_id
+            context.vehicle = vehicle
+            context.environment = environment
+            context.order = order
+            context.user_profile = user
+            transition_message = f"已切换至「{scenario_meta['title']}」。"
+            if system_message:
+                transition_message += system_message
+            context.messages.append(
+                ConversationMessage(
+                    role="system",
+                    content=transition_message,
+                    mode=vehicle.mode,
+                )
+            )
+            self._save(context)
+            return context
+
+    def clear_scenario(self, session_id: str) -> ConversationContext:
+        """取消当前场景并恢复中性状态，同时保留当前会话历史。"""
+
+        with self._lock:
+            context = self.get_context(session_id)
+            mode = context.vehicle.mode
+            context.scenario_id = None
+            context.vehicle = VehicleState(mode=mode)
+            context.environment = EnvironmentContext()
+            context.order = None
+            context.user_profile.role = (
+                "owner" if mode == "owner" else "passenger"
+            )
+            mode_label = "车主自驾" if mode == "owner" else "Robotaxi"
+            context.messages.append(
+                ConversationMessage(
+                    role="system",
+                    content=f"已取消场景选择，当前为{mode_label}自由对话模式。",
+                    mode=mode,
+                )
+            )
+            self._save(context)
+            return context
 
     def reset_to_mode(
         self,

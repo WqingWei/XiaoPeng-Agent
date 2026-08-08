@@ -76,7 +76,7 @@ async def switch_mode(
     )
     if scenario_meta.get("mode") != request.mode:
         scenario_id = DEFAULT_SCENARIO_BY_MODE[request.mode]
-        context = app_runtime.agent.context_manager.reset(
+        context = app_runtime.agent.context_manager.switch_scenario(
             request.session_id, scenario_id
         )
     else:

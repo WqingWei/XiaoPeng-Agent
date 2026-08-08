@@ -22,7 +22,7 @@ async def switch_scenario(
     request: ScenarioSwitchRequest,
     app_runtime: AppRuntime = Depends(get_runtime),
 ) -> dict:
-    """将指定会话重置为一个标准场景。"""
+    """切换指定会话的场景状态，同时保留消息历史。"""
 
     if request.scenario_id not in SCENARIO_IDS:
         raise HTTPException(
@@ -33,7 +33,7 @@ async def switch_scenario(
             },
         )
 
-    context = app_runtime.agent.context_manager.reset(
+    context = app_runtime.agent.context_manager.switch_scenario(
         request.session_id, request.scenario_id
     )
     app_runtime.agent.user_profile_manager.save_profile(context.user_profile)
@@ -41,7 +41,7 @@ async def switch_scenario(
         "session_id": request.session_id,
         "scenario_id": request.scenario_id,
         "scenario": get_scenario_meta(request.scenario_id),
-        "state": context.prompt_snapshot(),
+        "state": context.prompt_snapshot(history_limit=100),
     }
 
 
@@ -50,17 +50,16 @@ async def clear_scenario(
     session_id: str,
     app_runtime: AppRuntime = Depends(get_runtime),
 ) -> dict:
-    """取消当前场景，保留模式并恢复该模式的中性默认状态。"""
+    """取消当前场景，保留模式、消息历史并恢复中性默认状态。"""
 
-    current = app_runtime.agent.context_manager.get_context(session_id)
-    mode = current.vehicle.mode
-    context = app_runtime.agent.context_manager.reset_to_mode(session_id, mode)
+    context = app_runtime.agent.context_manager.clear_scenario(session_id)
+    mode = context.vehicle.mode
     app_runtime.agent.user_profile_manager.save_profile(context.user_profile)
     return {
         "session_id": session_id,
         "scenario_id": None,
         "mode": mode,
-        "state": context.prompt_snapshot(),
+        "state": context.prompt_snapshot(history_limit=100),
     }
 
 

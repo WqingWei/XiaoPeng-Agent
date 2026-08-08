@@ -5,12 +5,14 @@ import { useState, type FormEvent, type KeyboardEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useChat } from "@/hooks";
+import { getScenarioInputPrompt } from "@/lib/scenarios";
 import { useAppStore, useChatStore } from "@/stores";
 
 export function ChatInput() {
   const [text, setText] = useState("");
   const isProcessing = useChatStore((state) => state.isProcessing);
   const isSessionReady = useAppStore((state) => state.isSessionReady);
+  const currentScenario = useAppStore((state) => state.currentScenario);
   const { sendMessage } = useChat();
 
   function submit() {
@@ -41,7 +43,9 @@ export function ChatInput() {
         onChange={(event) => setText(event.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={
-          isSessionReady ? "告诉我您需要什么出行服务..." : "正在恢复会话历史..."
+          isSessionReady
+            ? getScenarioInputPrompt(currentScenario)
+            : "正在恢复会话历史…"
         }
         rows={1}
         value={text}

@@ -62,6 +62,7 @@ export interface Reasoning {
 export interface ConversationMessage {
   role: "system" | "user" | "assistant";
   content: string;
+  mode?: AgentMode | null;
   timestamp: string;
   agent_response?: AgentResponse | null;
 }

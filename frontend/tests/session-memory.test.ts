@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createSessionId, getOrCreateSessionId } from "../src/lib/session.ts";
+import { getScenarioInputPrompt } from "../src/lib/scenarios.ts";
 import { useChatStore } from "../src/stores/chatStore.ts";
 import type { AgentResponse } from "../src/types/agent.ts";
 
@@ -75,4 +76,36 @@ test("历史水合恢复消息和最后一轮决策详情", () => {
     ],
   );
   assert.equal(state.selectedResponse?.turn_id, 1);
+});
+
+test("场景或模式切换响应水合时保留已有对话并隐藏系统提示", () => {
+  useChatStore.getState().hydrateMessages([
+    {
+      role: "user",
+      content: "这是切换前的消息",
+      timestamp: "2026-08-07T10:00:00Z",
+    },
+    {
+      role: "assistant",
+      content: "这是切换前的回复",
+      timestamp: "2026-08-07T10:00:01Z",
+    },
+    {
+      role: "system",
+      content: "已切换至新场景。",
+      timestamp: "2026-08-07T10:00:02Z",
+    },
+  ]);
+
+  assert.deepEqual(
+    useChatStore.getState().messages.map((message) => message.content),
+    ["这是切换前的消息", "这是切换前的回复"],
+  );
+});
+
+test("不同场景返回对应的输入框提示", () => {
+  assert.match(getScenarioInputPrompt("fatigue_driving"), /疲劳信号/);
+  assert.match(getScenarioInputPrompt("change_destination"), /新的目的地/);
+  assert.match(getScenarioInputPrompt("passenger_help"), /紧急程度/);
+  assert.equal(getScenarioInputPrompt(null), "告诉我您需要什么出行服务…");
 });

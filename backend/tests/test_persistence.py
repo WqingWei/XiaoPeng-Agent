@@ -61,6 +61,23 @@ def test_context_is_restored_by_new_manager_with_response_details() -> None:
         "session_id": "session-a",
         "turn_id": 1,
     }
+    assert [message.mode for message in restored.messages] == ["owner", "owner"]
+
+
+def test_legacy_messages_are_assigned_to_restored_snapshot_mode() -> None:
+    persistence = FakePersistence()
+    persistence.contexts["legacy"] = {
+        "session_id": "legacy",
+        "vehicle": {"mode": "robotaxi"},
+        "messages": [
+            {"role": "user", "content": "旧版消息"},
+        ],
+    }
+
+    restored = ContextManager(persistence).get_context("legacy")
+
+    assert restored.messages[0].mode == "robotaxi"
+    assert restored.prompt_snapshot()["messages"][0]["content"] == "旧版消息"
 
 
 def test_remove_deletes_memory_and_persistent_context() -> None:

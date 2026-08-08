@@ -34,6 +34,7 @@ def test_add_message_tracks_history_and_turns() -> None:
 
     context = manager.get_context("session")
     assert [message.role for message in context.messages] == ["user", "assistant"]
+    assert [message.mode for message in context.messages] == ["owner", "owner"]
     assert context.turn_id == 1
 
 
@@ -50,6 +51,66 @@ def test_reset_loads_complete_scenario_and_clears_old_history() -> None:
     assert context.turn_id == 0
     assert len(context.messages) == 1
     assert context.messages[0].role == "system"
+
+
+def test_switch_scenario_preserves_history_turn_and_adds_transition() -> None:
+    manager = ContextManager()
+    manager.add_message("session", "user", "先帮我打开空调")
+    manager.add_message("session", "assistant", "空调已打开")
+
+    context = manager.switch_scenario("session", "passenger_help")
+
+    assert context.scenario_id == "passenger_help"
+    assert context.vehicle.mode == "robotaxi"
+    assert context.turn_id == 1
+    assert [message.role for message in context.messages] == [
+        "user",
+        "assistant",
+        "system",
+    ]
+    assert context.messages[0].content == "先帮我打开空调"
+    assert "乘客求助" in context.messages[-1].content
+
+
+def test_clear_scenario_preserves_history_and_creates_neutral_state() -> None:
+    manager = ContextManager()
+    manager.switch_scenario("session", "passenger_help")
+    manager.add_message("session", "user", "我现在没事了")
+
+    context = manager.clear_scenario("session")
+
+    assert context.scenario_id is None
+    assert context.vehicle.mode == "robotaxi"
+    assert context.vehicle.speed == 0
+    assert context.order is None
+    assert context.turn_id == 1
+    assert context.messages[-2].content == "我现在没事了"
+    assert "已取消场景选择" in context.messages[-1].content
+
+
+def test_messages_and_snapshot_are_isolated_by_mode() -> None:
+    manager = ContextManager()
+    manager.switch_scenario("session", "fatigue_driving")
+    manager.add_message("session", "user", "车主模式消息")
+    manager.switch_scenario("session", "passenger_help")
+    manager.add_message("session", "user", "Robotaxi模式消息")
+
+    context = manager.get_context("session")
+
+    assert [message.content for message in context.messages_for_mode("owner")] == [
+        context.messages[0].content,
+        "车主模式消息",
+    ]
+    assert [
+        message.content for message in context.messages_for_mode("robotaxi")
+    ] == [
+        context.messages[2].content,
+        "Robotaxi模式消息",
+    ]
+    assert all(
+        message["mode"] == "robotaxi"
+        for message in context.prompt_snapshot()["messages"]
+    )
 
 
 @pytest.mark.parametrize(

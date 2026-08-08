@@ -55,6 +55,33 @@ async def test_switch_scenario_returns_complete_initial_state(client: AsyncClien
 
 
 @pytest.mark.asyncio
+async def test_switch_scenario_preserves_existing_conversation(
+    client: AsyncClient,
+    runtime: AppRuntime,
+) -> None:
+    await client.post(
+        "/api/scenario",
+        json={"session_id": "s-history", "scenario_id": "fatigue_driving"},
+    )
+    runtime.agent.context_manager.add_message("s-history", "user", "记住这条消息")
+    runtime.agent.context_manager.add_message("s-history", "assistant", "我会记住")
+
+    response = await client.post(
+        "/api/scenario",
+        json={"session_id": "s-history", "scenario_id": "commute_arrival"},
+    )
+
+    assert response.status_code == 200
+    state = response.json()["state"]
+    assert state["turn_id"] == 1
+    assert [message["content"] for message in state["messages"][-3:-1]] == [
+        "记住这条消息",
+        "我会记住",
+    ]
+    assert "通勤到达" in state["messages"][-1]["content"]
+
+
+@pytest.mark.asyncio
 async def test_unknown_scenario_returns_404_with_available_ids(client: AsyncClient) -> None:
     response = await client.post(
         "/api/scenario",
@@ -122,11 +149,16 @@ async def test_mode_switch_updates_vehicle_and_user_role(client: AsyncClient) ->
 
 
 @pytest.mark.asyncio
-async def test_mode_switch_replaces_incompatible_scenario(client: AsyncClient) -> None:
+async def test_mode_switch_replaces_incompatible_scenario(
+    client: AsyncClient,
+    runtime: AppRuntime,
+) -> None:
     await client.post(
         "/api/scenario",
         json={"session_id": "s-1", "scenario_id": "passenger_help"},
     )
+    runtime.agent.context_manager.add_message("s-1", "user", "我想切换模式")
+    runtime.agent.context_manager.add_message("s-1", "assistant", "好的")
 
     response = await client.post(
         "/api/mode",
@@ -139,16 +171,40 @@ async def test_mode_switch_replaces_incompatible_scenario(client: AsyncClient) -
     assert payload["state"]["scenario_id"] == "fatigue_driving"
     assert payload["state"]["vehicle"]["mode"] == "owner"
     assert payload["state"]["order"] is None
+    assert payload["state"]["turn_id"] == 1
+    assert not any(
+        message["content"] == "我想切换模式"
+        for message in payload["state"]["messages"]
+    )
+
+    restored = await client.post(
+        "/api/mode",
+        json={"session_id": "s-1", "mode": "robotaxi"},
+    )
+
+    assert restored.status_code == 200
+    restored_messages = restored.json()["state"]["messages"]
+    assert any(
+        message["content"] == "我想切换模式"
+        for message in restored_messages
+    )
+    assert not any(
+        message["mode"] == "owner"
+        for message in restored_messages
+    )
 
 
 @pytest.mark.asyncio
 async def test_clear_scenario_keeps_mode_and_removes_scenario_state(
     client: AsyncClient,
+    runtime: AppRuntime,
 ) -> None:
     await client.post(
         "/api/scenario",
         json={"session_id": "s-1", "scenario_id": "passenger_help"},
     )
+    runtime.agent.context_manager.add_message("s-1", "user", "保留这条历史")
+    runtime.agent.context_manager.add_message("s-1", "assistant", "历史会保留")
 
     response = await client.delete("/api/scenario/s-1")
 
@@ -160,7 +216,14 @@ async def test_clear_scenario_keeps_mode_and_removes_scenario_state(
     assert payload["state"]["vehicle"]["mode"] == "robotaxi"
     assert payload["state"]["vehicle"]["speed"] == 0
     assert payload["state"]["order"] is None
-    assert payload["state"]["messages"] == []
+    assert payload["state"]["turn_id"] == 1
+    assert [
+        message["content"] for message in payload["state"]["messages"][-3:]
+    ] == [
+        "保留这条历史",
+        "历史会保留",
+        "已取消场景选择，当前为Robotaxi自由对话模式。",
+    ]
 
 
 @pytest.mark.asyncio
